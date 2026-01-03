@@ -32,17 +32,38 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
     }
 
     try {
+      console.log('SignIn: Starting login process...');
+      
       // Call API login
       await login({
         email: loginId,
         password: password,
       });
       
-      // Navigate to dashboard on success
-      onSignIn();
+      console.log('SignIn: Login completed, checking localStorage...');
+      
+      // Verify authentication before navigating
+      const isAuth = await new Promise(resolve => {
+        setTimeout(() => {
+          const token = localStorage.getItem('dayflow_auth_token');
+          const user = localStorage.getItem('dayflow_user');
+          console.log('SignIn: Auth check -', { hasToken: !!token, hasUser: !!user });
+          resolve(!!token && !!user);
+        }, 100);
+      });
+      
+      if (isAuth) {
+        console.log('SignIn: Authentication verified, calling onSignIn()');
+        onSignIn();
+      } else {
+        console.error('SignIn: Authentication verification failed - token or user not found in localStorage');
+        // Show error to user
+        alert('Login failed: Authentication could not be verified. Please try again.');
+      }
     } catch (err) {
       // Error is already handled in useAuth hook
-      console.error('Login failed:', err);
+      // Do NOT navigate to dashboard on error
+      console.error('SignIn: Login failed with error:', err);
     }
   };
 

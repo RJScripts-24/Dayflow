@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { Eye, EyeOff, Building2 } from 'lucide-react';
+import { useAuth } from '../hooks';
 
 interface SignInPageProps {
   onSwitchToSignUp: () => void;
@@ -16,13 +17,14 @@ interface FormErrors {
 }
 
 export function SignInPage({ onSwitchToSignUp, onSignIn }: SignInPageProps) {
+  const { login, isLoading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: FormErrors = {};
 
@@ -38,8 +40,40 @@ export function SignInPage({ onSwitchToSignUp, onSignIn }: SignInPageProps) {
       return;
     }
 
-    console.log('Sign in:', { loginId, password });
-    onSignIn();
+    try {
+      console.log('SignInPage: Starting login process...');
+      
+      // Call API login
+      await login({
+        email: loginId,
+        password: password,
+      });
+      
+      console.log('SignInPage: Login completed, checking localStorage...');
+      
+      // Verify authentication before navigating
+      const isAuth = await new Promise(resolve => {
+        setTimeout(() => {
+          const token = localStorage.getItem('dayflow_auth_token');
+          const user = localStorage.getItem('dayflow_user');
+          console.log('SignInPage: Auth check -', { hasToken: !!token, hasUser: !!user });
+          resolve(!!token && !!user);
+        }, 100);
+      });
+      
+      if (isAuth) {
+        console.log('SignInPage: Authentication verified, calling onSignIn()');
+        onSignIn();
+      } else {
+        console.error('SignInPage: Authentication verification failed - token or user not found in localStorage');
+        // Show error to user
+        alert('Login failed: Authentication could not be verified. Please try again.');
+      }
+    } catch (err) {
+      // Error is already handled in useAuth hook
+      // Do NOT navigate to dashboard on error
+      console.error('SignInPage: Login failed with error:', err);
+    }
   };
 
   return (

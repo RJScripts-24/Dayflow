@@ -23,7 +23,10 @@ const app = express();
 app.use(helmet());
 
 // 2. Cross-Origin Resource Sharing
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
 
 // 3. Body Parsers (JSON data)
 app.use(express.json());

@@ -6,7 +6,8 @@ const {
     getAllUsers,
     deleteUser,
     getAllRooms,
-    deleteRoom
+    deleteRoom,
+    respondToLeave
 } = require('../controllers/adminController');
 
 // All routes in this file are protected and require admin privileges
@@ -19,6 +20,9 @@ router.get('/stats', getSystemStats);
 // User Management
 router.get('/users', getAllUsers);
 router.delete('/users/:id', deleteUser);
+
+// Leave Management
+router.put('/leave/:leaveId', respondToLeave);
 
 // Room Management (Syncode context)
 router.get('/rooms', getAllRooms);

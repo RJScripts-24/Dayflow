@@ -40,9 +40,11 @@ export function useAuth(): UseAuthReturn {
       
       const response = await AuthService.login(credentials);
       setUser(response.user);
+      // Login successful - error will NOT be thrown
     } catch (err: any) {
-      const errorMessage = err?.message || 'Login failed. Please try again.';
+      const errorMessage = err?.message || 'Invalid email or password';
       setError(errorMessage);
+      // Re-throw error to prevent navigation in component
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -57,9 +59,11 @@ export function useAuth(): UseAuthReturn {
       
       const response = await AuthService.register(data);
       setUser(response.user);
+      // Registration successful - error will NOT be thrown
     } catch (err: any) {
-      const errorMessage = err?.message || 'Registration failed. Please try again.';
+      const errorMessage = err?.message || 'Registration failed. User may already exist.';
       setError(errorMessage);
+      // Re-throw error to prevent navigation in component
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);

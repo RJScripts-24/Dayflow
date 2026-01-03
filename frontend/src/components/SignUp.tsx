@@ -83,11 +83,25 @@ export function SignUp({ onSwitchToSignIn, onSignUp }: SignUpProps) {
         role: 'admin', // First signup creates admin account
       });
       
-      // Navigate to dashboard on success
-      onSignUp();
+      // Verify authentication before navigating
+      const isAuth = await new Promise(resolve => {
+        setTimeout(() => {
+          const token = localStorage.getItem('dayflow_auth_token');
+          const user = localStorage.getItem('dayflow_user');
+          resolve(!!token && !!user);
+        }, 100);
+      });
+      
+      if (isAuth) {
+        onSignUp();
+      } else {
+        console.error('Authentication verification failed after registration - token or user not found in localStorage');
+      }
     } catch (err) {
       // Error is already handled in useAuth hook
+      // Do NOT navigate to dashboard on error
       console.error('Registration failed:', err);
+      // Don't call onSignUp() here - user should not navigate on failure
     }
   };
 

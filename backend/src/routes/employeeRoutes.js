@@ -5,11 +5,22 @@ const {
     getEmployees,
     getEmployeeById,
     updateEmployee,
-    deleteEmployee
+    deleteEmployee,
+    getProfile,
+    markAttendance,
+    getAttendanceHistory,
+    applyForLeave
 } = require('../controllers/employeeController');
 const { protect } = require('../middleware/authMiddleware');
 const authorize = require('../middleware/rbacMiddleware');
 
+// Employee self-service routes
+router.get('/profile', protect, getProfile);
+router.post('/attendance', protect, markAttendance);
+router.get('/attendance/history', protect, getAttendanceHistory);
+router.post('/leave', protect, applyForLeave);
+
+// Admin/HR routes for managing employees
 router.route('/')
     .get(protect, authorize('admin', 'hr', 'manager'), getEmployees)
     .post(protect, authorize('admin', 'hr'), createEmployee);

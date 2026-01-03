@@ -35,12 +35,17 @@ export class AuthService {
    * Login user
    */
   static async login(data: LoginRequest): Promise<LoginResponse> {
+    console.log('AuthService.login called with:', { email: data.email });
     const response = await apiClient.post<LoginResponse>('/auth/login', data);
+    console.log('Login API response:', { hasToken: !!response.data.token, hasUser: !!response.data.user });
     
     // Save token and user to localStorage
     if (response.data.token) {
       this.setToken(response.data.token);
       this.setUser(response.data.user);
+      console.log('Token and user saved to localStorage');
+    } else {
+      console.error('No token in login response!', response.data);
     }
     
     return response.data;

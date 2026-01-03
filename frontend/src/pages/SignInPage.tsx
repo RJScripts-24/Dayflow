@@ -1,21 +1,30 @@
+/**
+ * SignInPage - User authentication page
+ */
+
 import { useState } from 'react';
 import { Eye, EyeOff, Building2 } from 'lucide-react';
 
-interface SignInProps {
+interface SignInPageProps {
   onSwitchToSignUp: () => void;
   onSignIn: () => void;
 }
 
-export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
+interface FormErrors {
+  loginId?: string;
+  password?: string;
+}
+
+export function SignInPage({ onSwitchToSignUp, onSignIn }: SignInPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ loginId?: string; password?: string }>({});
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: { loginId?: string; password?: string } = {};
+    const newErrors: FormErrors = {};
 
     if (!loginId) {
       newErrors.loginId = 'Login ID is required';
@@ -29,7 +38,6 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
       return;
     }
 
-    // Handle sign in logic
     console.log('Sign in:', { loginId, password });
     onSignIn();
   };
@@ -37,49 +45,48 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-[460px]">
-        {/* Auth Card */}
         <div
-          className="bg-white rounded-2xl p-14 shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
+          className="bg-white rounded-2xl p-8 shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
           style={{ 
             borderRadius: '18px',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)' 
           }}
         >
           {/* Logo & Brand */}
-          <div className="flex flex-col items-center mb-12">
+          <div className="flex flex-col items-center mb-10">
             <div 
-              className="w-24 h-24 bg-gradient-to-br from-[#4B2A6A] to-[#B39CD0] rounded-xl flex items-center justify-center mb-6"
+              className="w-14 h-14 bg-gradient-to-br from-[#4B2A6A] to-[#B39CD0] rounded-xl flex items-center justify-center mb-3"
               style={{ boxShadow: '0 4px 12px rgba(75, 42, 106, 0.2)' }}
             >
-              <Building2 className="w-14 h-14 text-white" />
+              <Building2 className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-[#1F1B2E]" style={{ fontSize: '28px', fontWeight: 600, letterSpacing: '-0.01em' }}>
+            <h2 className="text-[#1F1B2E]" style={{ fontSize: '16px', fontWeight: 600, letterSpacing: '-0.01em' }}>
               Dayflow
             </h2>
-            <p className="text-[#6E6A7C] mt-2" style={{ fontSize: '21px', fontWeight: 400 }}>
+            <p className="text-[#6E6A7C] mt-0.5" style={{ fontSize: '12px', fontWeight: 400 }}>
               Human Resource Management System
             </p>
           </div>
 
           {/* Header */}
-          <div className="text-center mb-10">
-            <h1 className="text-[#1F1B2E] mb-4" style={{ fontSize: '42px', fontWeight: 600, letterSpacing: '-0.02em' }}>
+          <div className="text-center mb-8">
+            <h1 className="text-[#1F1B2E] mb-3" style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.02em' }}>
               Welcome back
             </h1>
-            <p className="text-[#6E6A7C]" style={{ fontSize: '24px', opacity: 0.85 }}>
+            <p className="text-[#6E6A7C]" style={{ fontSize: '14px', opacity: 0.85 }}>
               Sign in to manage your workday
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Login ID Field */}
             <div>
               <label
                 htmlFor="loginId"
-                className="block text-[#1F1B2E] mb-3 transition-all duration-200"
+                className="block text-[#1F1B2E] mb-2 transition-all duration-200"
                 style={{
-                  fontSize: '22px',
+                  fontSize: '13px',
                   fontWeight: 500,
                   color: focusedField === 'loginId' || loginId ? '#2AB7CA' : '#1F1B2E',
                 }}
@@ -98,9 +105,9 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
                 }}
                 onFocus={() => setFocusedField('loginId')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full px-8 py-5 border rounded-xl bg-white transition-all duration-200 outline-none"
+                className="w-full px-4 py-3 border rounded-xl bg-white transition-all duration-200 outline-none"
                 style={{
-                  fontSize: '24px',
+                  fontSize: '14px',
                   borderColor: errors.loginId
                     ? '#D64545'
                     : focusedField === 'loginId'
@@ -114,12 +121,12 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
                 placeholder="Enter your login ID or email"
               />
               {errors.loginId && (
-                <p className="mt-2 text-[#D64545]" style={{ fontSize: '21px' }}>
+                <p className="mt-1.5 text-[#D64545]" style={{ fontSize: '12px' }}>
                   {errors.loginId}
                 </p>
               )}
               {!errors.loginId && (
-                <p className="mt-2 text-[#6E6A7C]" style={{ fontSize: '21px', opacity: 0.75 }}>
+                <p className="mt-1.5 text-[#6E6A7C]" style={{ fontSize: '12px', opacity: 0.75 }}>
                   Login ID is provided by your organization
                 </p>
               )}
@@ -129,9 +136,9 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
             <div>
               <label
                 htmlFor="password"
-                className="block text-[#1F1B2E] mb-3 transition-all duration-200"
+                className="block text-[#1F1B2E] mb-2 transition-all duration-200"
                 style={{
-                  fontSize: '22px',
+                  fontSize: '13px',
                   fontWeight: 500,
                   color: focusedField === 'password' || password ? '#2AB7CA' : '#1F1B2E',
                 }}
@@ -151,9 +158,9 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
                   }}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
-                  className="w-full px-8 py-5 pr-20 border rounded-xl bg-white transition-all duration-200 outline-none"
+                  className="w-full px-4 py-3 pr-12 border rounded-xl bg-white transition-all duration-200 outline-none"
                   style={{
-                    fontSize: '24px',
+                    fontSize: '14px',
                     borderColor: errors.password
                       ? '#D64545'
                       : focusedField === 'password'
@@ -169,21 +176,21 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-7 top-1/2 -translate-y-1/2 text-[#6E6A7C] hover:text-[#2AB7CA] transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6E6A7C] hover:text-[#2AB7CA] transition-colors"
                   tabIndex={-1}
                   style={{ opacity: 0.6 }}
                   onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                   onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
                 >
                   {showPassword ? (
-                    <EyeOff className="w-9 h-9" />
+                    <EyeOff className="w-5 h-5" />
                   ) : (
-                    <Eye className="w-9 h-9" />
+                    <Eye className="w-5 h-5" />
                   )}
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-2 text-[#D64545]" style={{ fontSize: '21px' }}>
+                <p className="mt-1.5 text-[#D64545]" style={{ fontSize: '12px' }}>
                   {errors.password}
                 </p>
               )}
@@ -192,9 +199,9 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
             {/* Sign In Button */}
             <button
               type="submit"
-              className="w-full bg-[#4B2A6A] text-white rounded-xl h-20 transition-all duration-200 hover:bg-[#3E2158] active:scale-[0.98] mt-8"
+              className="w-full bg-[#4B2A6A] text-white rounded-xl h-12 transition-all duration-200 hover:bg-[#3E2158] active:scale-[0.98] mt-6"
               style={{
-                fontSize: '24px',
+                fontSize: '14px',
                 fontWeight: 500,
                 boxShadow: '0 2px 8px rgba(75, 42, 106, 0.25), 0 1px 3px rgba(0, 0, 0, 0.1)',
               }}
@@ -209,8 +216,8 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
             </button>
 
             {/* Sign Up Link */}
-            <div className="text-center pt-3">
-              <p className="text-[#6E6A7C]" style={{ fontSize: '24px' }}>
+            <div className="text-center pt-2">
+              <p className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>
                 Don't have an account?{' '}
                 <button
                   type="button"

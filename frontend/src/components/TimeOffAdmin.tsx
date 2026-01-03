@@ -1,5 +1,11 @@
+/**
+ * TimeOffAdmin - Admin view for managing time off requests
+ */
+
 import { useState } from 'react';
 import { Search, Info } from 'lucide-react';
+import { getTimeOffStatusColor, getTimeOffStatusLabel } from '../utils/helpers';
+import { TIME_OFF_STATUS, type TimeOffStatus, type TimeOffType } from '../utils/constants';
 
 interface TimeOffRequest {
   id: string;
@@ -7,8 +13,8 @@ interface TimeOffRequest {
   employeeId: string;
   startDate: string;
   endDate: string;
-  timeOffType: 'Paid Time Off' | 'Sick Time Off';
-  status: 'pending' | 'approved' | 'rejected';
+  timeOffType: TimeOffType;
+  status: TimeOffStatus;
 }
 
 export function TimeOffAdmin() {
@@ -22,7 +28,7 @@ export function TimeOffAdmin() {
       startDate: '28/10/2025',
       endDate: '30/10/2025',
       timeOffType: 'Paid Time Off',
-      status: 'pending',
+      status: TIME_OFF_STATUS.PENDING,
     },
     {
       id: '2',
@@ -31,7 +37,7 @@ export function TimeOffAdmin() {
       startDate: '01/11/2025',
       endDate: '05/11/2025',
       timeOffType: 'Paid Time Off',
-      status: 'approved',
+      status: TIME_OFF_STATUS.APPROVED,
     },
     {
       id: '3',
@@ -40,7 +46,7 @@ export function TimeOffAdmin() {
       startDate: '25/10/2025',
       endDate: '25/10/2025',
       timeOffType: 'Sick Time Off',
-      status: 'pending',
+      status: TIME_OFF_STATUS.PENDING,
     },
     {
       id: '4',
@@ -49,7 +55,7 @@ export function TimeOffAdmin() {
       startDate: '15/10/2025',
       endDate: '18/10/2025',
       timeOffType: 'Paid Time Off',
-      status: 'rejected',
+      status: TIME_OFF_STATUS.REJECTED,
     },
     {
       id: '5',
@@ -58,19 +64,19 @@ export function TimeOffAdmin() {
       startDate: '22/10/2025',
       endDate: '22/10/2025',
       timeOffType: 'Sick Time Off',
-      status: 'approved',
+      status: TIME_OFF_STATUS.APPROVED,
     },
   ]);
 
   const handleApprove = (id: string) => {
     setRequests(requests.map(req => 
-      req.id === id ? { ...req, status: 'approved' as const } : req
+      req.id === id ? { ...req, status: TIME_OFF_STATUS.APPROVED } : req
     ));
   };
 
   const handleReject = (id: string) => {
     setRequests(requests.map(req => 
-      req.id === id ? { ...req, status: 'rejected' as const } : req
+      req.id === id ? { ...req, status: TIME_OFF_STATUS.REJECTED } : req
     ));
   };
 
@@ -79,32 +85,6 @@ export function TimeOffAdmin() {
       request.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return '#E6A23C';
-      case 'approved':
-        return '#2E8B57';
-      case 'rejected':
-        return '#D64545';
-      default:
-        return '#6E6A7C';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'approved':
-        return 'Approved';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return status;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -289,20 +269,20 @@ export function TimeOffAdmin() {
                           <div
                             className="w-2 h-2 rounded-full"
                             style={{
-                              backgroundColor: getStatusColor(request.status),
-                              boxShadow: `0 0 4px ${getStatusColor(request.status)}40`,
+                              backgroundColor: getTimeOffStatusColor(request.status),
+                              boxShadow: `0 0 4px ${getTimeOffStatusColor(request.status)}40`,
                             }}
                           />
                           <span
                             className="text-[#1F1B2E]"
                             style={{ fontSize: '13px', fontWeight: 500 }}
                           >
-                            {getStatusLabel(request.status)}
+                            {getTimeOffStatusLabel(request.status)}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {request.status === 'pending' ? (
+                        {request.status === TIME_OFF_STATUS.PENDING ? (
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleApprove(request.id)}

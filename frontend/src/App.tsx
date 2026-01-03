@@ -1,18 +1,25 @@
+/**
+ * App - Main application component with routing logic
+ */
+
 import { useState } from 'react';
-import { SignIn } from './components/SignIn';
+import { SignInPage } from './pages/SignInPage';
 import { SignUp } from './components/SignUp';
-import { Dashboard } from './components/Dashboard';
+import { DashboardPage } from './pages/DashboardPage';
 import { Profile } from './components/Profile';
 import { EmployeeProfile } from './components/EmployeeProfile';
+import { USER_ROLES, type UserRole } from './utils/constants';
+
+type PageType = 'signin' | 'signup' | 'dashboard' | 'profile' | 'employee-profile';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<'signin' | 'signup' | 'dashboard' | 'profile' | 'employee-profile'>('signin');
-  const [userRole, setUserRole] = useState<'admin' | 'employee'>('employee');
+  const [currentPage, setCurrentPage] = useState<PageType>('signin');
+  const [userRole, setUserRole] = useState<UserRole>(USER_ROLES.EMPLOYEE);
 
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
       {currentPage === 'signin' ? (
-        <SignIn 
+        <SignInPage 
           onSwitchToSignUp={() => setCurrentPage('signup')}
           onSignIn={() => setCurrentPage('dashboard')}
         />
@@ -34,7 +41,7 @@ export default function App() {
           userRole={userRole}
         />
       ) : (
-        <Dashboard 
+        <DashboardPage 
           onLogOut={() => setCurrentPage('signin')}
           onNavigateToProfile={() => setCurrentPage('profile')}
           onNavigateToEmployeeProfile={() => setCurrentPage('employee-profile')}

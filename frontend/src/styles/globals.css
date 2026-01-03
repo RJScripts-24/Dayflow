@@ -3,7 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  --font-size: 16px;
+  --font-size: 30px;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
@@ -140,43 +140,43 @@
 @layer base {
   :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
     h1 {
-      font-size: var(--text-2xl);
+      font-size: calc(var(--text-2xl) * 1.8);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     h2 {
-      font-size: var(--text-xl);
+      font-size: calc(var(--text-xl) * 1.8);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     h3 {
-      font-size: var(--text-lg);
+      font-size: calc(var(--text-lg) * 1.8);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     h4 {
-      font-size: var(--text-base);
+      font-size: calc(var(--text-base) * 1.6);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     label {
-      font-size: var(--text-base);
+      font-size: calc(var(--text-base) * 1.5);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     button {
-      font-size: var(--text-base);
+      font-size: calc(var(--text-base) * 1.5);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     input {
-      font-size: var(--text-base);
+      font-size: calc(var(--text-base) * 1.5);
       font-weight: var(--font-weight-normal);
       line-height: 1.5;
     }
@@ -185,6 +185,20 @@
 
 html {
   font-size: var(--font-size);
+}
+
+/* Additional scaling for all text elements */
+p, span, div, a, li {
+  font-size: inherit;
+}
+
+/* Ensure table text is also scaled */
+table {
+  font-size: 1rem;
+}
+
+th, td {
+  font-size: inherit;
 }
 
 /* SaaS Animation Keyframes - Subtle, Fast, Purposeful */

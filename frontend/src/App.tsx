@@ -8,15 +8,22 @@ import { SignUp } from './components/SignUp';
 import { DashboardPage } from './pages/DashboardPage';
 import { Profile } from './components/Profile';
 import { EmployeeProfile } from './components/EmployeeProfile';
+import { SalaryDetailPage } from './pages/SalaryDetailPage';
 import { USER_ROLES, type UserRole } from './utils/constants';
 import { AuthService } from './services';
 
-type PageType = 'signin' | 'signup' | 'dashboard' | 'profile' | 'employee-profile';
+type PageType = 'signin' | 'signup' | 'dashboard' | 'profile' | 'employee-profile' | 'salary-detail';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('signin');
   const [userRole, setUserRole] = useState<UserRole>(USER_ROLES.EMPLOYEE);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [salaryViewParams, setSalaryViewParams] = useState<{
+    employeeId: string;
+    employeeName: string;
+    month?: number;
+    year?: number;
+  } | null>(null);
 
   // Check authentication on mount and protect dashboard access
   useEffect(() => {
@@ -101,6 +108,8 @@ export default function App() {
           userRole={userRole}
           employeeId={selectedEmployeeId}
         />
+      ) : currentPage === 'salary-detail' ? (
+        <SalaryDetailPage />
       ) : (
         <DashboardPage 
           onLogOut={handleLogout}
@@ -108,6 +117,17 @@ export default function App() {
           onNavigateToEmployeeProfile={(employeeId: string) => {
             setSelectedEmployeeId(employeeId);
             setCurrentPage('employee-profile');
+          }}
+          onNavigateToSalaryDetail={(params: { employeeId: string; employeeName: string; month?: number; year?: number }) => {
+            setSalaryViewParams(params);
+            const searchParams = new URLSearchParams({
+              employeeId: params.employeeId,
+              employeeName: params.employeeName,
+              ...(params.month && { month: params.month.toString() }),
+              ...(params.year && { year: params.year.toString() })
+            });
+            window.history.pushState({}, '', `?page=salary-detail&${searchParams.toString()}`);
+            setCurrentPage('salary-detail');
           }}
           userRole={userRole}
         />

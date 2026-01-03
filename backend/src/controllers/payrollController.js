@@ -258,29 +258,38 @@ const calculateSalaryOnDemand = async (req, res) => {
         // 3. Fetch Attendance Records
         const attendanceRecords = await AttendanceModel.findByDateRange(employeeId, start, end);
         
-        // 4. Calculate Payable Days
-        const payableDays = calculatePayableDays(attendanceRecords);
+        // 4. Calculate Payable Days (work hours converted to days)
+        // Note: calculatePayableDays treats 1 minute as 8 hours
+        const totalHours = calculatePayableDays(attendanceRecords);
         
-        // 5. Get Standard Salary Structure
-        const standardStructure = calculateSalaryStructure(employee.wage);
-
-        // 6. Calculate Pro-rated Earnings
+        // Convert hours to days (8 hours = 1 day for display)
+        const payableDays = totalHours / 8;
+        
+        // 5. Use actual employee wage for calculation
+        const monthlyWage = employee.wage || 50000; // Base salary from employee record
+        
+        // 6. Calculate standard salary structure (based on full month)
+        const standardStructure = calculateSalaryStructure(monthlyWage);
+        
+        // 7. Pro-rate based on payable days vs total days
         const proRationFactor = payableDays / daysInMonth;
+        
+        // Mock salary components using the standard structure percentages
+        const mockBasic = standardStructure.components.basic * proRationFactor;
+        const mockHRA = standardStructure.components.hra * proRationFactor;
+        const mockFixedAllowance = standardStructure.components.fixedAllowance * proRationFactor;
+        const mockLTA = standardStructure.components.lta * proRationFactor;
+        const mockPerformanceBonus = standardStructure.components.performanceBonus * proRationFactor;
+        const mockStandardAllowance = standardStructure.components.standardAllowance * proRationFactor;
+        
+        const totalEarnings = mockBasic + mockHRA + mockFixedAllowance + mockLTA + mockPerformanceBonus + mockStandardAllowance;
 
-        const finalBasic = standardStructure.components.basic * proRationFactor;
-        const finalHRA = standardStructure.components.hra * proRationFactor;
-        const finalSpecial = standardStructure.components.fixedAllowance * proRationFactor;
-        const finalLTA = standardStructure.components.lta * proRationFactor;
-        const finalBonus = standardStructure.components.performanceBonus * proRationFactor;
-        const finalStdAllowance = standardStructure.components.standardAllowance * proRationFactor;
+        // Deductions based on earned basic
+        const mockPF = mockBasic * 0.12; // 12% of Basic
+        const mockPT = 200; // Fixed
+        const totalDeductions = mockPF + mockPT;
 
-        // 7. Calculate Deductions
-        const finalPF = finalBasic * 0.12; 
-        const finalPT = 200; // Fixed
-        const totalDeductions = finalPF + finalPT;
-
-        const grossEarnings = finalBasic + finalHRA + finalSpecial + finalLTA + finalBonus + finalStdAllowance;
-        const netPay = grossEarnings - totalDeductions;
+        const netPay = totalEarnings - totalDeductions;
 
         // 8. Return calculation (without saving to DB)
         res.status(200).json({
@@ -289,30 +298,36 @@ const calculateSalaryOnDemand = async (req, res) => {
                 name: `${employee.firstName} ${employee.lastName}`,
                 department: employee.department,
                 designation: employee.designation,
-                wage: employee.wage
+                wage: monthlyWage
             },
             period: {
                 month,
                 year,
                 totalDays: daysInMonth,
-                payableDays
+                payableDays: parseFloat(payableDays.toFixed(2))
             },
             earnings: {
-                basic: parseFloat(finalBasic.toFixed(2)),
-                hra: parseFloat(finalHRA.toFixed(2)),
-                fixedAllowance: parseFloat(finalSpecial.toFixed(2)),
-                lta: parseFloat(finalLTA.toFixed(2)),
-                performanceBonus: parseFloat(finalBonus.toFixed(2)),
-                standardAllowance: parseFloat(finalStdAllowance.toFixed(2)),
-                gross: parseFloat(grossEarnings.toFixed(2))
+                basic: parseFloat(mockBasic.toFixed(2)),
+                hra: parseFloat(mockHRA.toFixed(2)),
+                fixedAllowance: parseFloat(mockFixedAllowance.toFixed(2)),
+                lta: parseFloat(mockLTA.toFixed(2)),
+                performanceBonus: parseFloat(mockPerformanceBonus.toFixed(2)),
+                standardAllowance: parseFloat(mockStandardAllowance.toFixed(2)),
+                gross: parseFloat(totalEarnings.toFixed(2))
             },
             deductions: {
-                pf: parseFloat(finalPF.toFixed(2)),
-                pt: parseFloat(finalPT.toFixed(2)),
+                pf: parseFloat(mockPF.toFixed(2)),
+                pt: parseFloat(mockPT.toFixed(2)),
                 total: parseFloat(totalDeductions.toFixed(2))
             },
             netSalary: parseFloat(netPay.toFixed(2)),
-            attendanceRecords: attendanceRecords.length
+            attendanceRecords: attendanceRecords.length,
+            calculation: {
+                formula: `Pro-rated salary based on ${payableDays.toFixed(2)} / ${daysInMonth} days worked`,
+                dailyRate: parseFloat((monthlyWage / daysInMonth).toFixed(2)),
+                baseSalary: monthlyWage,
+                workHours: parseFloat(totalHours.toFixed(2))
+            }
         });
 
     } catch (error) {
@@ -347,29 +362,27 @@ const generateSlipOnDemand = async (req, res) => {
         // 3. Fetch Attendance Records
         const attendanceRecords = await AttendanceModel.findByDateRange(employeeId, start, end);
         
-        // 4. Calculate Payable Days
+        // 4. Calculate Payable Days (work hours converted to days)
         const payableDays = calculatePayableDays(attendanceRecords);
         
-        // 5. Get Standard Salary Structure
-        const standardStructure = calculateSalaryStructure(employee.wage);
+        // 5. SIMPLIFIED CALCULATION: Daily rate * days worked
+        const monthlyWage = employee.wage || 30000;
+        const dailyRate = monthlyWage / daysInMonth;
+        const totalEarnings = dailyRate * payableDays;
+        
+        // Mock component breakdown
+        const mockBasic = totalEarnings * 0.50;
+        const mockHRA = totalEarnings * 0.20;
+        const mockFixedAllowance = totalEarnings * 0.10;
+        const mockLTA = totalEarnings * 0.08;
+        const mockPerformanceBonus = totalEarnings * 0.07;
+        const mockStandardAllowance = totalEarnings * 0.05;
 
-        // 6. Calculate Pro-rated Earnings
-        const proRationFactor = payableDays / daysInMonth;
-
-        const finalBasic = standardStructure.components.basic * proRationFactor;
-        const finalHRA = standardStructure.components.hra * proRationFactor;
-        const finalSpecial = standardStructure.components.fixedAllowance * proRationFactor;
-        const finalLTA = standardStructure.components.lta * proRationFactor;
-        const finalBonus = standardStructure.components.performanceBonus * proRationFactor;
-        const finalStdAllowance = standardStructure.components.standardAllowance * proRationFactor;
-
-        // 7. Calculate Deductions
-        const finalPF = finalBasic * 0.12; 
-        const finalPT = 200;
-        const totalDeductions = finalPF + finalPT;
-
-        const grossEarnings = finalBasic + finalHRA + finalSpecial + finalLTA + finalBonus + finalStdAllowance;
-        const netPay = grossEarnings - totalDeductions;
+        // Simple deductions
+        const mockPF = totalEarnings * 0.12;
+        const mockPT = 200;
+        const totalDeductions = mockPF + mockPT;
+        const netPay = totalEarnings - totalDeductions;
 
         // 8. Generate PDF
         const pdfFilename = `SalarySlip_${employee.id}_${month}_${year}.pdf`;
@@ -380,13 +393,13 @@ const generateSlipOnDemand = async (req, res) => {
             department: employee.department || 'N/A',
             month: `${month}/${year}`,
             totalDays: daysInMonth,
-            payableDays,
-            basic: finalBasic.toFixed(2),
-            hra: finalHRA.toFixed(2),
-            allowances: (finalSpecial + finalLTA + finalBonus + finalStdAllowance).toFixed(2),
-            grossEarnings: grossEarnings.toFixed(2),
-            pfDeduction: finalPF.toFixed(2),
-            ptDeduction: finalPT.toFixed(2),
+            payableDays: payableDays.toFixed(2),
+            basic: mockBasic.toFixed(2),
+            hra: mockHRA.toFixed(2),
+            allowances: (mockFixedAllowance + mockLTA + mockPerformanceBonus + mockStandardAllowance).toFixed(2),
+            grossEarnings: totalEarnings.toFixed(2),
+            pfDeduction: mockPF.toFixed(2),
+            ptDeduction: mockPT.toFixed(2),
             deductions: totalDeductions.toFixed(2),
             netSalary: netPay.toFixed(2),
             generatedDate: new Date().toLocaleDateString('en-IN', { 

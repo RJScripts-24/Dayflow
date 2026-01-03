@@ -21,29 +21,33 @@ const determineAttendanceStatus = (workHours) => {
 };
 
 const calculatePayableDays = (attendanceRecords) => {
-    let totalPayableDays = 0;
+    let totalHours = 0;
 
     attendanceRecords.forEach(record => {
-        // Calculate based on actual work hours (8 hours = 1 day)
+        // Calculate based on actual work hours
+        // 1 MINUTE OF WORK = 8 HOURS for salary calculation
         if (record.work_hours && record.work_hours > 0) {
-            // Convert work hours to days (8 hours = 1 full day)
-            const daysWorked = record.work_hours / 8;
-            totalPayableDays += Math.min(daysWorked, 1); // Cap at 1 day max per record
+            // work_hours is stored as decimal hours (e.g., 8.5 hours)
+            // Convert to minutes first: hours * 60 = minutes
+            const minutes = record.work_hours * 60;
+            // Then treat each minute as 8 hours: minutes * 8
+            totalHours += minutes * 8;
         } else {
             // Fallback to status-based calculation if work hours not available
             const status = record.status;
             
             if (status === 'Present' || status === 'On Duty' || status === 'Official Trip') {
-                totalPayableDays += 1;
+                totalHours += 480; // 8 hours * 60 minutes = 480 hours equivalent
             } else if (status === 'Half Day') {
-                totalPayableDays += 0.5;
+                totalHours += 240; // 4 hours * 60 minutes = 240 hours equivalent
             } else if (status === 'Paid Leave') {
-                totalPayableDays += 1; 
+                totalHours += 480;
             }
         }
     });
 
-    return parseFloat(totalPayableDays.toFixed(2));
+    // Return total hours
+    return parseFloat(totalHours.toFixed(2));
 };
 
 module.exports = {

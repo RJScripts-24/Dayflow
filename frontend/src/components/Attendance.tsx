@@ -6,7 +6,11 @@ import { useState, useEffect } from 'react';
 import { AttendanceTable, type AttendanceRecord } from './tables/AttendanceTable';
 import { AdminService } from '../services';
 
-export function Attendance() {
+interface AttendanceProps {
+  onNavigateToSalaryDetail?: (params: { employeeId: string; employeeName: string; month?: number; year?: number }) => void;
+}
+
+export function Attendance({ onNavigateToSalaryDetail }: AttendanceProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +85,7 @@ export function Attendance() {
       records={attendanceRecords}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
+      onNavigateToSalaryDetail={onNavigateToSalaryDetail}
     />
   );
 }

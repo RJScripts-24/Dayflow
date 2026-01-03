@@ -21,7 +21,8 @@ import { USER_ROLES, EMPLOYEE_STATUS, type UserRole } from '../utils/constants';
 interface DashboardPageProps {
   onLogOut: () => void;
   onNavigateToProfile: () => void;
-  onNavigateToEmployeeProfile: () => void;
+  onNavigateToEmployeeProfile: (employeeId: string) => void;
+  onNavigateToSalaryDetail?: (params: { employeeId: string; employeeName: string; month?: number; year?: number }) => void;
   userRole: UserRole;
 }
 
@@ -30,7 +31,8 @@ type TabType = 'employees' | 'attendance' | 'timeoff';
 export function DashboardPage({ 
   onLogOut, 
   onNavigateToProfile, 
-  onNavigateToEmployeeProfile, 
+  onNavigateToEmployeeProfile,
+  onNavigateToSalaryDetail,
   userRole
 }: DashboardPageProps) {
   const [activeTab, setActiveTab] = useState<TabType>('employees');
@@ -72,7 +74,7 @@ export function DashboardPage({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'attendance':
-        return isAdmin ? <Attendance /> : <EmployeeAttendance />;
+        return isAdmin ? <Attendance onNavigateToSalaryDetail={onNavigateToSalaryDetail} /> : <EmployeeAttendance />;
       case 'timeoff':
         return isAdmin ? <TimeOffAdmin /> : <TimeOffEmployee />;
       case 'employees':

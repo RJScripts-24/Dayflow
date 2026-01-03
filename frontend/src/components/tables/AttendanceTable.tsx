@@ -20,16 +20,28 @@ interface AttendanceTableProps {
   records: AttendanceRecord[];
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onNavigateToSalaryDetail?: (params: { employeeId: string; employeeName: string; month?: number; year?: number }) => void;
 }
 
-export function AttendanceTable({ records, searchQuery, onSearchChange }: AttendanceTableProps) {
+export function AttendanceTable({ records, searchQuery, onSearchChange, onNavigateToSalaryDetail }: AttendanceTableProps) {
   const [selectedDate, setSelectedDate] = useState('October 22, 2025');
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; name: string } | null>(null);
 
   const handleEmployeeClick = (employeeId: string, employeeName: string) => {
-    setSelectedEmployee({ id: employeeId, name: employeeName });
-    setShowSalaryModal(true);
+    // If navigation callback is provided, use it to open in new page
+    if (onNavigateToSalaryDetail) {
+      onNavigateToSalaryDetail({ 
+        employeeId, 
+        employeeName,
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear()
+      });
+    } else {
+      // Fallback to modal
+      setSelectedEmployee({ id: employeeId, name: employeeName });
+      setShowSalaryModal(true);
+    }
   };
 
   const filteredRecords = records.filter(
@@ -212,10 +224,13 @@ export function AttendanceTable({ records, searchQuery, onSearchChange }: Attend
       </div>
 
       {/* Salary Calculation Modal */}
-      {selectedEmployee && (
+      {showSalaryModal && selectedEmployee && (
         <SalaryCalculationModal
           isOpen={showSalaryModal}
-          onClose={() => setShowSalaryModal(false)}
+          onClose={() => {
+            setShowSalaryModal(false);
+            setSelectedEmployee(null);
+          }}
           employeeId={selectedEmployee.id}
           employeeName={selectedEmployee.name}
         />

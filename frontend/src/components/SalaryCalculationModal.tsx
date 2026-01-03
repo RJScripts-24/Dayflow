@@ -43,6 +43,10 @@ interface SalaryCalculation {
   };
   netSalary: number;
   attendanceRecords: number;
+  calculation?: {
+    formula: string;
+    dailyRate: number;
+  };
 }
 
 export function SalaryCalculationModal({ isOpen, onClose, employeeId, employeeName }: SalaryCalculationModalProps) {
@@ -97,16 +101,15 @@ export function SalaryCalculationModal({ isOpen, onClose, employeeId, employeeNa
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div
-        className="bg-white rounded-2xl w-full max-w-3xl flex flex-col"
+        className="bg-white rounded-2xl w-full max-w-3xl my-8"
         style={{ 
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          maxHeight: '90vh'
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
         }}
       >
         {/* Header */}
-        <div className="bg-white border-b border-[#E2E0EA] p-6 rounded-t-2xl flex-shrink-0">
+        <div className="bg-white border-b border-[#E2E0EA] p-6 rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-[#1F1B2E] mb-1" style={{ fontSize: '24px', fontWeight: 600 }}>
@@ -126,8 +129,8 @@ export function SalaryCalculationModal({ isOpen, onClose, employeeId, employeeNa
           </div>
         </div>
 
-        {/* Content - Scrollable */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        {/* Content */}
+        <div className="p-6 space-y-6">
           {/* Period Selection */}
           <div className="bg-[#F7F6FB] rounded-xl p-4 border border-[#E2E0EA]">
             <div className="flex items-center gap-2 mb-3">
@@ -203,13 +206,25 @@ export function SalaryCalculationModal({ isOpen, onClose, employeeId, employeeNa
                 <div className="bg-[#F7F6FB] rounded-lg p-4 border border-[#E2E0EA]">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="w-4 h-4 text-[#2AB7CA]" />
-                    <span className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>Payable Days</span>
+                    <span className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>Days Worked</span>
                   </div>
                   <p className="text-[#1F1B2E]" style={{ fontSize: '16px', fontWeight: 600 }}>
-                    {salaryData.period.payableDays} / {salaryData.period.totalDays}
+                    {salaryData.period.payableDays} / {salaryData.period.totalDays} days
                   </p>
                 </div>
               </div>
+
+              {/* Calculation Info */}
+              {salaryData.calculation && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-blue-800" style={{ fontSize: '14px', fontWeight: 500 }}>
+                    💡 Calculation: {salaryData.calculation.formula}
+                  </p>
+                  <p className="text-blue-600 mt-1" style={{ fontSize: '13px' }}>
+                    Daily Rate: ₹{salaryData.calculation.dailyRate} × {salaryData.period.payableDays} days worked
+                  </p>
+                </div>
+              )}
 
               {/* Earnings */}
               <div className="bg-[#F7F6FB] rounded-xl p-5 border border-[#E2E0EA]">
@@ -294,8 +309,8 @@ export function SalaryCalculationModal({ isOpen, onClose, employeeId, employeeNa
           ) : null}
         </div>
 
-        {/* Footer - Always visible */}
-        <div className="bg-white border-t border-[#E2E0EA] p-6 rounded-b-2xl flex-shrink-0">
+        {/* Footer */}
+        <div className="bg-white border-t border-[#E2E0EA] p-6 rounded-b-2xl">
           <div className="flex gap-4">
             <button
               onClick={onClose}

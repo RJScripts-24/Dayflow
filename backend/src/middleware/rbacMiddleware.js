@@ -1,5 +1,5 @@
-const { HTTP_STATUS } = require('../config/constants');
-const logger = require('../config/logger');
+const { HTTP_STATUS } = require('../../config/constants');
+const logger = require('../../config/logger');
 
 const authorize = (...roles) => {
     return (req, res, next) => {

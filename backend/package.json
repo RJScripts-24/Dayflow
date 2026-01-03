@@ -4,7 +4,8 @@
   "description": "Backend for Dayflow Payroll System",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -22,5 +23,8 @@
     "pdfkit": "^0.13.0",
     "puppeteer": "^22.7.0",
     "winston": "^3.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
   }
 }

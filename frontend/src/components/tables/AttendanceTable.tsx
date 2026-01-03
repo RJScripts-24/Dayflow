@@ -4,6 +4,7 @@
 
 import { Search, ChevronLeft, ChevronRight, ChevronDown, Info } from 'lucide-react';
 import { useState } from 'react';
+import { SalaryCalculationModal } from '../SalaryCalculationModal';
 
 export interface AttendanceRecord {
   id: string;
@@ -23,6 +24,13 @@ interface AttendanceTableProps {
 
 export function AttendanceTable({ records, searchQuery, onSearchChange }: AttendanceTableProps) {
   const [selectedDate, setSelectedDate] = useState('October 22, 2025');
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; name: string } | null>(null);
+
+  const handleEmployeeClick = (employeeId: string, employeeName: string) => {
+    setSelectedEmployee({ id: employeeId, name: employeeName });
+    setShowSalaryModal(true);
+  };
 
   const filteredRecords = records.filter(
     (record) =>
@@ -143,14 +151,17 @@ export function AttendanceTable({ records, searchQuery, onSearchChange }: Attend
               {filteredRecords.map((record, index) => (
                 <tr
                   key={record.id}
-                  className="border-b border-[#E2E0EA] hover:bg-white transition-colors cursor-pointer"
+                  className="border-b border-[#E2E0EA] hover:bg-white transition-colors"
                   style={{
                     backgroundColor: index % 2 === 0 ? '#F7F6FB' : '#FFFFFF',
                   }}
                 >
                   <td className="px-6 py-4">
-                    <div>
-                      <p className="text-[#1F1B2E]" style={{ fontSize: '16px', fontWeight: 500 }}>
+                    <div
+                      className="cursor-pointer hover:bg-[#E8E3F3] rounded-lg p-2 -m-2 transition-colors"
+                      onClick={() => handleEmployeeClick(record.employeeId, record.employeeName)}
+                    >
+                      <p className="text-[#2AB7CA] hover:text-[#239BAA] hover:underline" style={{ fontSize: '16px', fontWeight: 500 }}>
                         {record.employeeName}
                       </p>
                       <p className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>
@@ -196,8 +207,19 @@ export function AttendanceTable({ records, searchQuery, onSearchChange }: Attend
         <p className="text-[#6E6A7C]" style={{ fontSize: '15px', lineHeight: '1.6' }}>
           Attendance records are used to calculate payable days for payroll. All times are recorded 
           in the employee's local timezone and verified through biometric or digital check-in systems.
+          Click on an employee name to calculate their salary and download salary slip.
         </p>
       </div>
+
+      {/* Salary Calculation Modal */}
+      {selectedEmployee && (
+        <SalaryCalculationModal
+          isOpen={showSalaryModal}
+          onClose={() => setShowSalaryModal(false)}
+          employeeId={selectedEmployee.id}
+          employeeName={selectedEmployee.name}
+        />
+      )}
     </div>
   );
 }

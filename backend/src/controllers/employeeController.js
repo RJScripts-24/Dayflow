@@ -144,6 +144,23 @@ const applyForLeave = async (req, res) => {
 };
 
 /**
+ * @desc    Get employee's own leave requests
+ * @route   GET /api/emp/leaves
+ * @access  Private (Employee)
+ */
+const getMyLeaves = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const leaves = await LeaveModel.findByEmployee(userId);
+        
+        res.status(200).json(leaves);
+    } catch (error) {
+        console.error('Get Leaves Error:', error);
+        res.status(500).json({ message: 'Server error fetching leaves' });
+    }
+};
+
+/**
  * @desc    Create a new employee
  * @route   POST /api/emp
  * @access  Private (Admin/HR)
@@ -269,6 +286,7 @@ module.exports = {
     markAttendance,
     getAttendanceHistory,
     applyForLeave,
+    getMyLeaves,
     createEmployee,
     getEmployees,
     getEmployeeById,

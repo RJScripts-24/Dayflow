@@ -232,11 +232,199 @@ const updatePaymentStatus = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Calculate salary for employee based on attendance (on-demand)
+ * @route   POST /api/payroll/calculate
+ * @access  Private (Admin/HR/Manager)
+ */
+const calculateSalaryOnDemand = async (req, res) => {
+    try {
+        const { employeeId, month, year } = req.body;
+
+        if (!employeeId || !month || !year) {
+            return res.status(400).json({ message: 'Please provide employeeId, month, and year' });
+        }
+
+        // 1. Get employee details
+        const employee = await UserModel.findById(employeeId);
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        // 2. Get Date Range for the month
+        const { start, end } = getMonthRange(year, month);
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // 3. Fetch Attendance Records
+        const attendanceRecords = await AttendanceModel.findByDateRange(employeeId, start, end);
+        
+        // 4. Calculate Payable Days
+        const payableDays = calculatePayableDays(attendanceRecords);
+        
+        // 5. Get Standard Salary Structure
+        const standardStructure = calculateSalaryStructure(employee.wage);
+
+        // 6. Calculate Pro-rated Earnings
+        const proRationFactor = payableDays / daysInMonth;
+
+        const finalBasic = standardStructure.components.basic * proRationFactor;
+        const finalHRA = standardStructure.components.hra * proRationFactor;
+        const finalSpecial = standardStructure.components.fixedAllowance * proRationFactor;
+        const finalLTA = standardStructure.components.lta * proRationFactor;
+        const finalBonus = standardStructure.components.performanceBonus * proRationFactor;
+        const finalStdAllowance = standardStructure.components.standardAllowance * proRationFactor;
+
+        // 7. Calculate Deductions
+        const finalPF = finalBasic * 0.12; 
+        const finalPT = 200; // Fixed
+        const totalDeductions = finalPF + finalPT;
+
+        const grossEarnings = finalBasic + finalHRA + finalSpecial + finalLTA + finalBonus + finalStdAllowance;
+        const netPay = grossEarnings - totalDeductions;
+
+        // 8. Return calculation (without saving to DB)
+        res.status(200).json({
+            employee: {
+                id: employee.id,
+                name: `${employee.firstName} ${employee.lastName}`,
+                department: employee.department,
+                designation: employee.designation,
+                wage: employee.wage
+            },
+            period: {
+                month,
+                year,
+                totalDays: daysInMonth,
+                payableDays
+            },
+            earnings: {
+                basic: parseFloat(finalBasic.toFixed(2)),
+                hra: parseFloat(finalHRA.toFixed(2)),
+                fixedAllowance: parseFloat(finalSpecial.toFixed(2)),
+                lta: parseFloat(finalLTA.toFixed(2)),
+                performanceBonus: parseFloat(finalBonus.toFixed(2)),
+                standardAllowance: parseFloat(finalStdAllowance.toFixed(2)),
+                gross: parseFloat(grossEarnings.toFixed(2))
+            },
+            deductions: {
+                pf: parseFloat(finalPF.toFixed(2)),
+                pt: parseFloat(finalPT.toFixed(2)),
+                total: parseFloat(totalDeductions.toFixed(2))
+            },
+            netSalary: parseFloat(netPay.toFixed(2)),
+            attendanceRecords: attendanceRecords.length
+        });
+
+    } catch (error) {
+        console.error('Calculate Salary Error:', error);
+        res.status(500).json({ message: 'Server error calculating salary' });
+    }
+};
+
+/**
+ * @desc    Generate and download salary slip on-demand
+ * @route   POST /api/payroll/generate-slip
+ * @access  Private (Admin/HR/Manager)
+ */
+const generateSlipOnDemand = async (req, res) => {
+    try {
+        const { employeeId, month, year } = req.body;
+
+        if (!employeeId || !month || !year) {
+            return res.status(400).json({ message: 'Please provide employeeId, month, and year' });
+        }
+
+        // 1. Get employee details
+        const employee = await UserModel.findById(employeeId);
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        // 2. Get Date Range for the month
+        const { start, end } = getMonthRange(year, month);
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // 3. Fetch Attendance Records
+        const attendanceRecords = await AttendanceModel.findByDateRange(employeeId, start, end);
+        
+        // 4. Calculate Payable Days
+        const payableDays = calculatePayableDays(attendanceRecords);
+        
+        // 5. Get Standard Salary Structure
+        const standardStructure = calculateSalaryStructure(employee.wage);
+
+        // 6. Calculate Pro-rated Earnings
+        const proRationFactor = payableDays / daysInMonth;
+
+        const finalBasic = standardStructure.components.basic * proRationFactor;
+        const finalHRA = standardStructure.components.hra * proRationFactor;
+        const finalSpecial = standardStructure.components.fixedAllowance * proRationFactor;
+        const finalLTA = standardStructure.components.lta * proRationFactor;
+        const finalBonus = standardStructure.components.performanceBonus * proRationFactor;
+        const finalStdAllowance = standardStructure.components.standardAllowance * proRationFactor;
+
+        // 7. Calculate Deductions
+        const finalPF = finalBasic * 0.12; 
+        const finalPT = 200;
+        const totalDeductions = finalPF + finalPT;
+
+        const grossEarnings = finalBasic + finalHRA + finalSpecial + finalLTA + finalBonus + finalStdAllowance;
+        const netPay = grossEarnings - totalDeductions;
+
+        // 8. Generate PDF
+        const pdfFilename = `SalarySlip_${employee.id}_${month}_${year}.pdf`;
+        const pdfData = {
+            companyName: 'Dayflow Systems',
+            employeeName: `${employee.firstName} ${employee.lastName}`,
+            employeeId: employee.id,
+            department: employee.department || 'N/A',
+            month: `${month}/${year}`,
+            totalDays: daysInMonth,
+            payableDays,
+            basic: finalBasic.toFixed(2),
+            hra: finalHRA.toFixed(2),
+            allowances: (finalSpecial + finalLTA + finalBonus + finalStdAllowance).toFixed(2),
+            grossEarnings: grossEarnings.toFixed(2),
+            pfDeduction: finalPF.toFixed(2),
+            ptDeduction: finalPT.toFixed(2),
+            deductions: totalDeductions.toFixed(2),
+            netSalary: netPay.toFixed(2),
+            generatedDate: new Date().toLocaleDateString('en-IN', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric' 
+            })
+        };
+
+        await generateSalarySlip(pdfData, pdfFilename);
+
+        // 9. Send the PDF file
+        const filePath = path.join(__dirname, '../../public/exports', pdfFilename);
+        
+        if (fs.existsSync(filePath)) {
+            res.download(filePath, pdfFilename, (err) => {
+                if (err) {
+                    console.error('Download error:', err);
+                    res.status(500).json({ message: 'Error downloading file' });
+                }
+            });
+        } else {
+            res.status(404).json({ message: 'Generated file not found' });
+        }
+
+    } catch (error) {
+        console.error('Generate Slip Error:', error);
+        res.status(500).json({ message: 'Server error generating salary slip' });
+    }
+};
+
 module.exports = {
     processPayroll,
     getAllPayrolls,
     getMyPayroll,
     downloadSlip,
     getPayrollByEmployee,
-    updatePaymentStatus
+    updatePaymentStatus,
+    calculateSalaryOnDemand,
+    generateSlipOnDemand
 };

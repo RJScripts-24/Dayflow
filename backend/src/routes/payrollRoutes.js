@@ -5,7 +5,9 @@ const {
     getAllPayrolls,
     getPayrollByEmployee,
     updatePaymentStatus,
-    downloadSlip
+    downloadSlip,
+    calculateSalaryOnDemand,
+    generateSlipOnDemand
 } = require('../controllers/payrollController');
 const { protect } = require('../middleware/authMiddleware');
 const authorize = require('../middleware/rbacMiddleware');
@@ -15,6 +17,10 @@ router.use(protect);
 router.route('/')
     .get(authorize('admin', 'hr', 'manager'), getAllPayrolls)
     .post(authorize('admin', 'hr'), processPayroll);
+
+router.post('/calculate', authorize('admin', 'hr', 'manager'), calculateSalaryOnDemand);
+
+router.post('/generate-slip', authorize('admin', 'hr', 'manager'), generateSlipOnDemand);
 
 router.get('/employee/:employeeId', authorize('admin', 'hr', 'manager'), getPayrollByEmployee);
 

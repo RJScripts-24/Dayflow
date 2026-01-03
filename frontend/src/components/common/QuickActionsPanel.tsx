@@ -3,22 +3,70 @@
  */
 
 import { Plane } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatTime } from '../../utils/formatters';
+import { EmployeeService } from '../../services';
 
 export function QuickActionsPanel() {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleCheckIn = () => {
-    const time = formatTime(new Date());
-    setIsCheckedIn(true);
-    setCheckInTime(time);
+  // Check if user has already checked in today
+  useEffect(() => {
+    checkTodayAttendance();
+  }, []);
+
+  const checkTodayAttendance = async () => {
+    try {
+      const history = await EmployeeService.getAttendanceHistory();
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Find today's record
+      const todayRecord = history.find((record: any) => {
+        const recordDate = new Date(record.date).toISOString().split('T')[0];
+        return recordDate === today;
+      });
+
+      if (todayRecord && todayRecord.check_in_time) {
+        setIsCheckedIn(!todayRecord.check_out_time); // Only show as checked in if not checked out
+        if (!todayRecord.check_out_time) {
+          const checkIn = new Date(todayRecord.check_in_time);
+          setCheckInTime(formatTime(checkIn));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check today\'s attendance:', error);
+    }
   };
 
-  const handleCheckOut = () => {
-    setIsCheckedIn(false);
-    setCheckInTime(null);
+  const handleCheckIn = async () => {
+    try {
+      setLoading(true);
+      await EmployeeService.markAttendance();
+      const time = formatTime(new Date());
+      setIsCheckedIn(true);
+      setCheckInTime(time);
+    } catch (error: any) {
+      console.error('Check-in failed:', error);
+      alert(error.message || 'Failed to check in');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      setLoading(true);
+      await EmployeeService.markAttendance();
+      setIsCheckedIn(false);
+      setCheckInTime(null);
+    } catch (error: any) {
+      console.error('Check-out failed:', error);
+      alert(error.message || 'Failed to check out');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,16 +81,17 @@ export function QuickActionsPanel() {
       {!isCheckedIn ? (
         <button
           onClick={handleCheckIn}
-          className="w-full py-3 bg-[#2AB7CA] text-white rounded-lg hover:bg-[#239BAA] transition-all duration-200"
+          disabled={loading}
+          className="w-full py-3 bg-[#2AB7CA] text-white rounded-lg hover:bg-[#239BAA] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ fontSize: '14px', fontWeight: 500, boxShadow: '0 2px 6px rgba(42, 183, 202, 0.2)' }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 4px 10px rgba(42, 183, 202, 0.3)';
+            if (!loading) e.currentTarget.style.boxShadow = '0 4px 10px rgba(42, 183, 202, 0.3)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.boxShadow = '0 2px 6px rgba(42, 183, 202, 0.2)';
           }}
         >
-          Check In
+          {loading ? 'Processing...' : 'Check In'}
         </button>
       ) : (
         <div className="space-y-3">
@@ -57,10 +106,11 @@ export function QuickActionsPanel() {
           </div>
           <button
             onClick={handleCheckOut}
-            className="w-full py-3 bg-[#E2E0EA] text-[#1F1B2E] rounded-lg hover:bg-[#C9C7D3] transition-colors"
+            disabled={loading}
+            className="w-full py-3 bg-[#E2E0EA] text-[#1F1B2E] rounded-lg hover:bg-[#C9C7D3] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ fontSize: '14px', fontWeight: 500 }}
           >
-            Check Out
+            {loading ? 'Processing...' : 'Check Out'}
           </button>
         </div>
       )}

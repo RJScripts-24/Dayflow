@@ -92,6 +92,14 @@ export class EmployeeService {
     const response = await apiClient.post<ApplyLeaveResponse>('/emp/leave', data);
     return response.data;
   }
+
+  /**
+   * Get employee's own leave requests
+   */
+  static async getMyLeaves(): Promise<Leave[]> {
+    const response = await apiClient.get<Leave[]>('/emp/leaves');
+    return response.data;
+  }
 }
 
 export default EmployeeService;

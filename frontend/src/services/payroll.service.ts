@@ -60,6 +60,46 @@ export class PayrollService {
     });
     return response.data;
   }
+
+  /**
+   * Calculate salary on-demand for an employee
+   */
+  static async calculateSalary(employeeId: string, month: number, year: number): Promise<any> {
+    const response = await apiClient.post('/payroll/calculate', {
+      employeeId,
+      month,
+      year,
+    });
+    return response.data;
+  }
+
+  /**
+   * Generate and download salary slip on-demand
+   */
+  static async generateSalarySlip(employeeId: string, month: number, year: number): Promise<void> {
+    const response = await apiClient.post(
+      '/payroll/generate-slip',
+      {
+        employeeId,
+        month,
+        year,
+      },
+      {
+        responseType: 'blob',
+      }
+    );
+
+    // Create a download link
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `SalarySlip_${employeeId}_${month}_${year}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
 }
 
 export default PayrollService;

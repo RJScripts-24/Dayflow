@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { EmployeeService } from '../services';
 
 interface AttendanceRecord {
   id: string;
@@ -11,81 +12,78 @@ interface AttendanceRecord {
 }
 
 export function EmployeeAttendance() {
-  const [selectedMonth, setSelectedMonth] = useState('October 2025');
-  const [selectedDate] = useState('22 October 2025');
+  const [selectedMonth, setSelectedMonth] = useState('January 2026');
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock attendance data for the employee
-  const attendanceRecords: AttendanceRecord[] = [
-    {
-      id: '1',
-      date: '28/10/2025',
-      checkIn: '10:00',
-      checkOut: '19:00',
-      workHours: '09:00',
-      extraHours: '01:00',
-    },
-    {
-      id: '2',
-      date: '29/10/2025',
-      checkIn: '10:00',
-      checkOut: '19:00',
-      workHours: '09:00',
-      extraHours: '01:00',
-    },
-    {
-      id: '3',
-      date: '23/10/2025',
-      checkIn: '09:00',
-      checkOut: '18:00',
-      workHours: '09:00',
-      extraHours: '01:00',
-    },
-    {
-      id: '4',
-      date: '22/10/2025',
-      checkIn: '09:15',
-      checkOut: '18:15',
-      workHours: '09:00',
-      extraHours: '01:00',
-    },
-    {
-      id: '5',
-      date: '21/10/2025',
-      checkIn: '09:00',
-      checkOut: '17:30',
-      workHours: '08:30',
-      extraHours: '00:30',
-    },
-    {
-      id: '6',
-      date: '18/10/2025',
-      checkIn: '08:45',
-      checkOut: '18:00',
-      workHours: '09:15',
-      extraHours: '01:15',
-    },
-    {
-      id: '7',
-      date: '17/10/2025',
-      checkIn: '09:30',
-      checkOut: '18:30',
-      workHours: '09:00',
-      extraHours: '01:00',
-    },
-    {
-      id: '8',
-      date: '16/10/2025',
-      checkIn: '09:00',
-      checkOut: '18:00',
-      workHours: '09:00',
-      extraHours: '01:00',
-    },
-  ];
+  // Fetch real attendance data
+  useEffect(() => {
+    fetchAttendance();
+    
+    // Refresh every 30 seconds for real-time updates
+    const interval = setInterval(fetchAttendance, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Summary metrics
-  const daysPresent = 8;
-  const leavesCount = 2;
-  const totalWorkingDays = 22;
+  const fetchAttendance = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await EmployeeService.getAttendanceHistory();
+      
+      // Format the data to match AttendanceRecord type
+      const formattedRecords: AttendanceRecord[] = data.map((record: any) => ({
+        id: record.id?.toString() || '',
+        date: new Date(record.date).toLocaleDateString('en-GB'),
+        checkIn: record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-',
+        checkOut: record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-',
+        workHours: record.work_hours ? formatHours(record.work_hours) : '-',
+        extraHours: record.work_hours ? calculateExtraHours(record.work_hours) : '-',
+      }));
+      
+      setAttendanceRecords(formattedRecords);
+    } catch (err: any) {
+      console.error('Error fetching attendance:', err);
+      setError(err.message || 'Failed to load attendance records');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper to format hours from decimal to HH:MM
+  const formatHours = (hours: number): string => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  // Helper to calculate extra hours (assuming 8 hours is standard)
+  const calculateExtraHours = (workHours: number): string => {
+    const extra = Math.max(0, workHours - 8);
+    return formatHours(extra);
+  };
+
+  // Calculate summary metrics
+  const daysPresent = attendanceRecords.length;
+  const leavesCount = 0; // This would come from a separate API
+  const totalWorkingDays = 22; // This should be calculated based on the month
+
+  if (loading && attendanceRecords.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-[#6E6A7C]">Loading attendance records...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-[#D64545]">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -171,13 +169,6 @@ export function EmployeeAttendance() {
         </div>
       </div>
 
-      {/* Date Context Row */}
-      <div className="text-center">
-        <h2 className="text-[#1F1B2E]" style={{ fontSize: '18px', fontWeight: 600 }}>
-          {selectedDate}
-        </h2>
-      </div>
-
       {/* Attendance Table */}
       <div
         className="bg-[#F7F6FB] rounded-xl border border-[#E2E0EA] overflow-hidden"
@@ -220,44 +211,52 @@ export function EmployeeAttendance() {
               </tr>
             </thead>
             <tbody>
-              {attendanceRecords.map((record, index) => (
-                <tr
-                  key={record.id}
-                  className="border-b border-[#E2E0EA] hover:bg-white transition-colors"
-                  style={{
-                    backgroundColor: index % 2 === 0 ? '#F7F6FB' : '#FFFFFF',
-                  }}
-                >
-                  <td className="px-6 py-4">
-                    <span className="text-[#1F1B2E]" style={{ fontSize: '14px', fontWeight: 500 }}>
-                      {record.date}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                      {record.checkIn}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                      {record.checkOut}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span
-                      className="text-[#1F1B2E]"
-                      style={{ fontSize: '14px', fontWeight: 500 }}
-                    >
-                      {record.workHours}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                      {record.extraHours}
-                    </span>
+              {attendanceRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-[#6E6A7C]" style={{ fontSize: '14px' }}>
+                    No attendance records found. Check in to start tracking your attendance.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                attendanceRecords.map((record, index) => (
+                  <tr
+                    key={record.id}
+                    className="border-b border-[#E2E0EA] hover:bg-white transition-colors"
+                    style={{
+                      backgroundColor: index % 2 === 0 ? '#F7F6FB' : '#FFFFFF',
+                    }}
+                  >
+                    <td className="px-6 py-4">
+                      <span className="text-[#1F1B2E]" style={{ fontSize: '14px', fontWeight: 500 }}>
+                        {record.date}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
+                        {record.checkIn}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
+                        {record.checkOut}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span
+                        className="text-[#1F1B2E]"
+                        style={{ fontSize: '14px', fontWeight: 500 }}
+                      >
+                        {record.workHours}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
+                        {record.extraHours}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

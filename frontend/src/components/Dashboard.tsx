@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 import { Building2, Bell, User, LogOut, Calendar, Clock, Users, TrendingUp, Plane, Settings, Plus, Search } from 'lucide-react';
 import { Attendance } from './Attendance';
 import { EmployeeAttendance } from './EmployeeAttendance';
 import { TimeOffAdmin } from './TimeOffAdmin';
 import { TimeOffEmployee } from './TimeOffEmployee';
+import { EmployeeService, AdminService } from '../services';
 
 interface DashboardProps {
   onLogOut: () => void;
@@ -126,29 +127,131 @@ export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeP
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const mockEmployees: Employee[] = [
-    { id: '1', name: 'Sarah Johnson', role: 'Senior Developer', department: 'Engineering', status: 'present', checkInTime: '09:00 AM' },
-    { id: '2', name: 'Michael Chen', role: 'Product Manager', department: 'Product', status: 'on-leave' },
-    { id: '3', name: 'Emily Rodriguez', role: 'UX Designer', department: 'Design', status: 'present', checkInTime: '08:45 AM' },
-    { id: '4', name: 'James Wilson', role: 'HR Manager', department: 'Human Resources', status: 'not-checked-in' },
-    { id: '5', name: 'Lisa Anderson', role: 'Marketing Lead', department: 'Marketing', status: 'absent' },
-    { id: '6', name: 'David Kim', role: 'Backend Developer', department: 'Engineering', status: 'present', checkInTime: '09:15 AM' },
-    { id: '7', name: 'Jessica Brown', role: 'Sales Executive', department: 'Sales', status: 'present', checkInTime: '08:30 AM' },
-    { id: '8', name: 'Robert Taylor', role: 'DevOps Engineer', department: 'Engineering', status: 'not-checked-in' },
-    { id: '9', name: 'Amanda White', role: 'Content Writer', department: 'Marketing', status: 'on-leave' },
-  ];
+  // Fetch employees, attendance, and leave data
+  useEffect(() => {
+    fetchEmployeesData();
+  }, []);
 
-  const handleCheckIn = () => {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    setCheckedIn(true);
-    setCheckInTime(timeString);
+  const fetchEmployeesData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all users
+      const users = await AdminService.getAllUsers();
+      console.log('✅ Fetched users:', users);
+      
+      // Fetch today's attendance records
+      let attendanceRecords: any[] = [];
+      try {
+        attendanceRecords = await AdminService.getAllAttendance();
+        console.log('✅ Fetched attendance records:', attendanceRecords);
+      } catch (error) {
+        console.error('❌ Error fetching attendance:', error);
+      }
+      
+      // Fetch leave requests
+      let leaveRequests: any[] = [];
+      try {
+        leaveRequests = await AdminService.getAllLeaves();
+        console.log('✅ Fetched leave requests:', leaveRequests);
+      } catch (error) {
+        console.error('❌ Error fetching leaves:', error);
+      }
+      
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Filter approved leaves for today
+      const approvedLeavesToday = leaveRequests.filter(leave => 
+        leave.status === 'Approved' && 
+        leave.startDate <= today && 
+        leave.endDate >= today
+      );
+      
+      // Map users to employees with their status
+      const mappedEmployees: Employee[] = users.map(user => {
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        
+        // Check if user is on approved leave today
+        const isOnLeave = approvedLeavesToday.some(leave => leave.employeeId === user.id);
+        
+        if (isOnLeave) {
+          return {
+            id: user.id,
+            name: fullName,
+            role: user.designation || user.role,
+            department: user.department || 'N/A',
+            status: 'on-leave' as EmployeeStatus
+          };
+        }
+        
+        // Check if user has attendance record for today
+        const attendance = attendanceRecords.find(record => record.employeeId === user.id);
+        
+        if (attendance && attendance.checkIn) {
+          const checkInDate = new Date(attendance.checkIn);
+          const checkInTimeStr = checkInDate.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+          
+          return {
+            id: user.id,
+            name: fullName,
+            role: user.designation || user.role,
+            department: user.department || 'N/A',
+            status: 'present' as EmployeeStatus,
+            checkInTime: checkInTimeStr
+          };
+        }
+        
+        // Default: not checked in
+        return {
+          id: user.id,
+          name: fullName,
+          role: user.designation || user.role,
+          department: user.department || 'N/A',
+          status: 'not-checked-in' as EmployeeStatus
+        };
+      });
+      
+      console.log('✅ Mapped employees:', mappedEmployees);
+      setEmployees(mappedEmployees);
+      setLoading(false);
+    } catch (error) {
+      console.error('❌ Error fetching employees data:', error);
+      alert(`Failed to load employees: ${error}`);
+      setLoading(false);
+    }
   };
 
-  const handleCheckOut = () => {
-    setCheckedIn(false);
-    setCheckInTime(null);
+  const handleCheckIn = async () => {
+    try {
+      const response = await EmployeeService.markAttendance();
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      setCheckedIn(true);
+      setCheckInTime(timeString);
+      alert('Checked in successfully!');
+    } catch (error: any) {
+      console.error('Check-in failed:', error);
+      alert(error.message || 'Failed to check in');
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      const response = await EmployeeService.markAttendance();
+      setCheckedIn(false);
+      setCheckInTime(null);
+      alert('Checked out successfully!');
+    } catch (error: any) {
+      console.error('Check-out failed:', error);
+      alert(error.message || 'Failed to check out');
+    }
   };
 
   return (
@@ -352,15 +455,25 @@ export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeP
               </div>
 
               {/* Employee Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 xl:pr-80">
-                {mockEmployees.map((employee) => (
-                  <EmployeeCard 
-                    key={employee.id} 
-                    employee={employee} 
-                    onClick={() => onNavigateToEmployeeProfile(employee.id)} 
-                  />
-                ))}
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <p className="text-[#6E6A7C]" style={{ fontSize: '24px' }}>Loading employees...</p>
+                </div>
+              ) : employees.length === 0 ? (
+                <div className="flex items-center justify-center py-20">
+                  <p className="text-[#6E6A7C]" style={{ fontSize: '24px' }}>No employees found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 xl:pr-80">
+                  {employees.map((employee) => (
+                    <EmployeeCard 
+                      key={employee.id} 
+                      employee={employee} 
+                      onClick={() => onNavigateToEmployeeProfile(employee.id)} 
+                    />
+                  ))}
+                </div>
+              )}
             </>
           ) : activeTab === 'attendance' ? (
             userRole === 'admin' ? <Attendance /> : <EmployeeAttendance />
@@ -483,7 +596,10 @@ export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeP
             style={{
               color: activeTab === 'timeoff' ? '#2AB7CA' : '#6E6A7C',
             }}
-          >
+          >{
+        setShowCreateModal(false);
+        fetchEmployeesData(); // Refresh employee list
+      }
             <Calendar className="w-9 h-9" />
             <span style={{ fontSize: '20px', fontWeight: 500 }}>Time Off</span>
           </button>

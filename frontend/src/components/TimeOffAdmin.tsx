@@ -2,10 +2,12 @@
  * TimeOffAdmin - Admin view for managing time off requests
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Info } from 'lucide-react';
 import { getTimeOffStatusColor, getTimeOffStatusLabel } from '../utils/helpers';
 import { TIME_OFF_STATUS, type TimeOffStatus, type TimeOffType } from '../utils/constants';
+import { AdminService } from '../services';
+import type { Leave } from '../types/api.types';
 
 interface TimeOffRequest {
   id: string;
@@ -20,70 +22,76 @@ interface TimeOffRequest {
 export function TimeOffAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<'timeoff' | 'allocation'>('timeoff');
-  const [requests, setRequests] = useState<TimeOffRequest[]>([
-    {
-      id: '1',
-      employeeName: 'Sarah Johnson',
-      employeeId: 'EMP-2020-001',
-      startDate: '28/10/2025',
-      endDate: '30/10/2025',
-      timeOffType: 'Paid Time Off',
-      status: TIME_OFF_STATUS.PENDING,
-    },
-    {
-      id: '2',
-      employeeName: 'Michael Chen',
-      employeeId: 'EMP-2020-002',
-      startDate: '01/11/2025',
-      endDate: '05/11/2025',
-      timeOffType: 'Paid Time Off',
-      status: TIME_OFF_STATUS.APPROVED,
-    },
-    {
-      id: '3',
-      employeeName: 'Emily Rodriguez',
-      employeeId: 'EMP-2020-003',
-      startDate: '25/10/2025',
-      endDate: '25/10/2025',
-      timeOffType: 'Sick Time Off',
-      status: TIME_OFF_STATUS.PENDING,
-    },
-    {
-      id: '4',
-      employeeName: 'David Kim',
-      employeeId: 'EMP-2020-004',
-      startDate: '15/10/2025',
-      endDate: '18/10/2025',
-      timeOffType: 'Paid Time Off',
-      status: TIME_OFF_STATUS.REJECTED,
-    },
-    {
-      id: '5',
-      employeeName: 'Jessica Martinez',
-      employeeId: 'EMP-2020-005',
-      startDate: '22/10/2025',
-      endDate: '22/10/2025',
-      timeOffType: 'Sick Time Off',
-      status: TIME_OFF_STATUS.APPROVED,
-    },
-  ]);
+  const [requests, setRequests] = useState<Leave[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleApprove = (id: string) => {
-    setRequests(requests.map(req => 
-      req.id === id ? { ...req, status: TIME_OFF_STATUS.APPROVED } : req
-    ));
+  // Fetch leaves on component mount
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const fetchLeaves = async () => {
+    try {
+      setLoading(true);
+      const leaves = await AdminService.getAllLeaves();
+      setRequests(leaves);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching leaves:', err);
+      setError(err.response?.data?.message || 'Failed to fetch leave requests');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setRequests(requests.map(req => 
-      req.id === id ? { ...req, status: TIME_OFF_STATUS.REJECTED } : req
-    ));
+  const handleApprove = async (id: number) => {
+    try {
+      setLoading(true);
+      await AdminService.updateLeaveStatus(id, { 
+        status: 'Approved',
+        adminResponse: 'Your leave request has been approved.' 
+      });
+      fetchLeaves(); // Refresh the list
+      alert('Leave request approved successfully!');
+    } catch (err: any) {
+      console.error('Error approving leave:', err);
+      alert(err.response?.data?.message || 'Failed to approve leave request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    try {
+      const reason = prompt('Please provide a reason for rejection:');
+      if (!reason) return;
+
+      setLoading(true);
+      await AdminService.updateLeaveStatus(id, { 
+        status: 'Rejected',
+        adminResponse: reason 
+      });
+      fetchLeaves(); // Refresh the list
+      alert('Leave request rejected.');
+    } catch (err: any) {
+      console.error('Error rejecting leave:', err);
+      alert(err.response?.data?.message || 'Failed to reject leave request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   const filteredRequests = requests.filter(
     (request) =>
-      request.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.employeeId.toLowerCase().includes(searchQuery.toLowerCase())
+      request.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.employeeId?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -228,87 +236,107 @@ export function TimeOffAdmin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRequests.map((request, index) => (
-                    <tr
-                      key={request.id}
-                      className="border-b border-[#E2E0EA] hover:bg-white transition-colors"
-                      style={{
-                        backgroundColor: index % 2 === 0 ? '#F7F6FB' : '#FFFFFF',
-                      }}
-                    >
-                      <td className="px-6 py-4">
-                        <div>
-                          <p
-                            className="text-[#1F1B2E]"
-                            style={{ fontSize: '14px', fontWeight: 500 }}
-                          >
-                            {request.employeeName}
-                          </p>
-                          <p className="text-[#6E6A7C]" style={{ fontSize: '12px' }}>
-                            {request.employeeId}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                          {request.startDate}
+                  {loading && requests.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center">
+                        <span className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>
+                          Loading leave requests...
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                          {request.endDate}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                          {request.timeOffType}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <div
-                            className="w-2 h-2 rounded-full"
-                            style={{
-                              backgroundColor: getTimeOffStatusColor(request.status),
-                              boxShadow: `0 0 4px ${getTimeOffStatusColor(request.status)}40`,
-                            }}
-                          />
-                          <span
-                            className="text-[#1F1B2E]"
-                            style={{ fontSize: '13px', fontWeight: 500 }}
-                          >
-                            {getTimeOffStatusLabel(request.status)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {request.status === TIME_OFF_STATUS.PENDING ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleApprove(request.id)}
-                              className="px-4 py-2 bg-[#2E8B57] text-white rounded-lg hover:bg-[#267347] transition-colors"
-                              style={{ fontSize: '13px', fontWeight: 500 }}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleReject(request.id)}
-                              className="px-4 py-2 bg-[#D64545] text-white rounded-lg hover:bg-[#B83838] transition-colors"
-                              style={{ fontSize: '13px', fontWeight: 500 }}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-[#6E6A7C]" style={{ fontSize: '13px' }}>
-                              —
-                            </span>
-                          </div>
-                        )}
                       </td>
                     </tr>
-                  ))}
+                  ) : filteredRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center">
+                        <span className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>
+                          {searchQuery ? 'No matching leave requests found.' : 'No leave requests yet.'}
+                        </span>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRequests.map((request, index) => (
+                      <tr
+                        key={request.id}
+                        className="border-b border-[#E2E0EA] hover:bg-white transition-colors"
+                        style={{
+                          backgroundColor: index % 2 === 0 ? '#F7F6FB' : '#FFFFFF',
+                        }}
+                      >
+                        <td className="px-6 py-4">
+                          <div>
+                            <p
+                              className="text-[#1F1B2E]"
+                              style={{ fontSize: '14px', fontWeight: 500 }}
+                            >
+                              {request.employeeName || 'N/A'}
+                            </p>
+                            <p className="text-[#6E6A7C]" style={{ fontSize: '12px' }}>
+                              {request.employeeId}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
+                            {formatDate(request.startDate)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
+                            {formatDate(request.endDate)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
+                            {request.leaveType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{
+                                backgroundColor: getTimeOffStatusColor(request.status),
+                                boxShadow: `0 0 4px ${getTimeOffStatusColor(request.status)}40`,
+                              }}
+                            />
+                            <span
+                              className="text-[#1F1B2E]"
+                              style={{ fontSize: '13px', fontWeight: 500 }}
+                            >
+                              {getTimeOffStatusLabel(request.status)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {request.status === 'Pending' || request.status === TIME_OFF_STATUS.PENDING ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleApprove(request.id)}
+                                disabled={loading}
+                                className="px-4 py-2 bg-[#2E8B57] text-white rounded-lg hover:bg-[#267347] transition-colors disabled:opacity-50"
+                                style={{ fontSize: '13px', fontWeight: 500 }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleReject(request.id)}
+                                disabled={loading}
+                                className="px-4 py-2 bg-[#D64545] text-white rounded-lg hover:bg-[#B83838] transition-colors disabled:opacity-50"
+                                style={{ fontSize: '13px', fontWeight: 500 }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <span className="text-[#6E6A7C]" style={{ fontSize: '13px' }}>
+                                —
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

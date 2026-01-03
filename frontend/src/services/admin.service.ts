@@ -80,6 +80,14 @@ export class AdminService {
   }
 
   /**
+   * Get all leave requests
+   */
+  static async getAllLeaves(): Promise<Leave[]> {
+    const response = await apiClient.get<Leave[]>('/admin/leaves');
+    return response.data;
+  }
+
+  /**
    * Get all rooms (placeholder)
    */
   static async getRooms(): Promise<RoomsResponse> {
@@ -92,6 +100,14 @@ export class AdminService {
    */
   static async deleteRoom(roomId: number): Promise<DeleteRoomResponse> {
     const response = await apiClient.delete<DeleteRoomResponse>(`/admin/rooms/${roomId}`);
+    return response.data;
+  }
+
+  /**
+   * Get all attendance records for today
+   */
+  static async getAllAttendance(): Promise<any[]> {
+    const response = await apiClient.get<any[]>('/admin/attendance');
     return response.data;
   }
 }

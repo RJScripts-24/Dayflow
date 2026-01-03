@@ -9,7 +9,8 @@ const {
     getProfile,
     markAttendance,
     getAttendanceHistory,
-    applyForLeave
+    applyForLeave,
+    getMyLeaves
 } = require('../controllers/employeeController');
 const { protect } = require('../middleware/authMiddleware');
 const authorize = require('../middleware/rbacMiddleware');
@@ -19,6 +20,7 @@ router.get('/profile', protect, getProfile);
 router.post('/attendance', protect, markAttendance);
 router.get('/attendance/history', protect, getAttendanceHistory);
 router.post('/leave', protect, applyForLeave);
+router.get('/leaves', protect, getMyLeaves);
 
 // Admin/HR routes for managing employees
 router.route('/')

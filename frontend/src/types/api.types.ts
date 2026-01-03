@@ -149,14 +149,17 @@ export interface AttendanceHistoryQuery {
 export interface Leave {
   id: number;
   employeeId: string;
+  employeeName?: string;
+  email?: string;
+  department?: string;
   leaveType: string;
   startDate: string;
   endDate: string;
   reason: string;
   status: LeaveStatus;
   adminResponse?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ApplyLeaveRequest {

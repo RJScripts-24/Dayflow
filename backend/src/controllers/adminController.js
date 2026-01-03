@@ -244,6 +244,39 @@ const getAllAttendance = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Get all leave requests
+ * @route   GET /api/admin/leaves
+ * @access  Private (Admin only)
+ */
+const getAllLeaves = async (req, res) => {
+    try {
+        const leaves = await LeaveModel.findAll();
+        
+        // Format the response
+        const formattedLeaves = leaves.map(leave => ({
+            id: leave.id,
+            employeeId: leave.employeeId,
+            employeeName: `${leave.firstName} ${leave.lastName}`,
+            email: leave.email,
+            department: leave.department,
+            leaveType: leave.leaveType,
+            startDate: leave.startDate,
+            endDate: leave.endDate,
+            reason: leave.reason,
+            status: leave.status,
+            adminResponse: leave.adminResponse,
+            created_at: leave.created_at,
+            updated_at: leave.updated_at
+        }));
+        
+        res.status(200).json(formattedLeaves);
+    } catch (error) {
+        console.error('Error fetching leaves:', error);
+        res.status(500).json({ message: 'Server error fetching leaves' });
+    }
+};
+
 module.exports = {
     createUser,
     getAllUsers,
@@ -252,5 +285,6 @@ module.exports = {
     deleteUser,
     getAllRooms,
     deleteRoom,
-    getAllAttendance
+    getAllAttendance,
+    getAllLeaves
 };

@@ -1,82 +1,107 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db.config'); // Assuming the new MySQL config
-const Employee = require('./Employee');
+const db = require('../../config/db.config');
 
-const Leave = sequelize.define('Leave', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
+/**
+ * Leave Model - Manages leave records using raw MySQL queries
+ */
+const LeaveModel = {
+    /**
+     * Create a new leave request
+     * @param {Object} leaveData
+     * @returns {Promise<Object>}
+     */
+    create: async (leaveData) => {
+        const sql = `
+            INSERT INTO leaves 
+            (employeeId, leaveType, startDate, endDate, reason, status) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        
+        const values = [
+            leaveData.employeeId,
+            leaveData.leaveType,
+            leaveData.startDate,
+            leaveData.endDate,
+            leaveData.reason,
+            leaveData.status || 'Pending'
+        ];
+        
+        const [result] = await db.execute(sql, values);
+        return { insertId: result.insertId, ...leaveData };
     },
-    employeeId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: Employee,
-            key: 'id'
-        }
+
+    /**
+     * Find leave by ID
+     * @param {number} id
+     * @returns {Promise<Object|null>}
+     */
+    findById: async (id) => {
+        const sql = `SELECT * FROM leaves WHERE id = ?`;
+        const [rows] = await db.execute(sql, [id]);
+        return rows[0] || null;
     },
-    leaveType: {
-        type: DataTypes.ENUM('Sick Leave', 'Casual Leave', 'Earned Leave', 'Maternity Leave', 'Unpaid Leave'),
-        allowNull: false,
-        validate: {
-            notEmpty: { msg: 'Please specify the type of leave' }
-        }
+
+    /**
+     * Find all leaves for an employee
+     * @param {string} employeeId
+     * @returns {Promise<Array>}
+     */
+    findByEmployee: async (employeeId) => {
+        const sql = `
+            SELECT * FROM leaves 
+            WHERE employeeId = ?
+            ORDER BY created_at DESC
+        `;
+        const [rows] = await db.execute(sql, [employeeId]);
+        return rows;
     },
-    startDate: {
-        type: DataTypes.DATEONLY,
-        allowNull: false,
-        validate: {
-            notEmpty: { msg: 'Please provide a start date' }
-        }
+
+    /**
+     * Find all pending leave requests
+     * @returns {Promise<Array>}
+     */
+    findPending: async () => {
+        const sql = `
+            SELECT l.*, u.firstName, u.lastName, u.email, u.department 
+            FROM leaves l
+            JOIN users u ON l.employeeId = u.id
+            WHERE l.status = 'Pending'
+            ORDER BY l.created_at ASC
+        `;
+        const [rows] = await db.execute(sql);
+        return rows;
     },
-    endDate: {
-        type: DataTypes.DATEONLY,
-        allowNull: false,
-        validate: {
-            notEmpty: { msg: 'Please provide an end date' }
-        }
+
+    /**
+     * Update leave status
+     * @param {number} leaveId
+     * @param {string} status
+     * @param {string} adminResponse
+     * @returns {Promise<Object>}
+     */
+    updateStatus: async (leaveId, status, adminResponse = null) => {
+        const sql = `
+            UPDATE leaves 
+            SET status = ?, adminResponse = ?, updated_at = NOW()
+            WHERE id = ?
+        `;
+        await db.execute(sql, [status, adminResponse, leaveId]);
+        return { id: leaveId, status, adminResponse };
     },
-    reason: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        validate: {
-            notEmpty: { msg: 'Please provide a reason for the leave' }
-        }
-    },
-    status: {
-        type: DataTypes.ENUM('Pending', 'Approved', 'Rejected'),
-        defaultValue: 'Pending'
-    },
-    adminResponse: {
-        type: DataTypes.STRING,
-        allowNull: true
-    },
-    reviewedBy: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-    reviewedAt: {
-        type: DataTypes.DATE,
-        allowNull: true
+
+    /**
+     * Find all leaves
+     * @returns {Promise<Array>}
+     */
+    findAll: async () => {
+        const sql = `
+            SELECT l.*, u.firstName, u.lastName, u.email, u.department 
+            FROM leaves l
+            JOIN users u ON l.employeeId = u.id
+            ORDER BY l.created_at DESC
+        `;
+        const [rows] = await db.execute(sql);
+        return rows;
     }
-}, {
-    timestamps: true,
-    tableName: 'leaves',
-    hooks: {
-        beforeValidate: (leave) => {
-            if (leave.startDate && leave.endDate) {
-                if (new Date(leave.startDate) > new Date(leave.endDate)) {
-                    throw new Error('End date cannot be before start date');
-                }
-            }
-        }
-    }
-});
+};
 
-// Define Association
-// Note: Usually associations are grouped in an index.js file, but can be defined here if this is the entry point.
-Employee.hasMany(Leave, { foreignKey: 'employeeId' });
-Leave.belongsTo(Employee, { foreignKey: 'employeeId' });
-
-module.exports = Leave;
+module.exports = LeaveModel;

@@ -10,6 +10,77 @@ const generateToken = (id, role) => {
 };
 
 /**
+ * @desc    Register a new user (self-registration)
+ * @route   POST /api/auth/register
+ * @access  Public
+ */
+const registerUser = async (req, res) => {
+    try {
+        const { firstName, lastName, email, password, role } = req.body;
+
+        // Check if user already exists
+        const userExists = await UserModel.findByEmail(email);
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        // Generate employee ID
+        const { generateNextId } = require('../services/idGenerator');
+        const lastUser = await UserModel.getLastId();
+        // Use different prefix for admin IDs
+        let employeeId;
+        if (role === 'admin') {
+            employeeId = generateNextId(lastUser ? lastUser.id : null, 'ADMIN');
+        } else {
+            employeeId = generateNextId(lastUser ? lastUser.id : null);
+        }
+
+        // Hash password
+        const hashedPassword = await hashPassword(password);
+
+        // Create user
+        // Only allow valid roles
+        const allowedRoles = ['admin', 'hr', 'employee'];
+        let userRole = 'employee';
+        if (role && allowedRoles.includes(role)) {
+            userRole = role;
+        }
+        const newUser = {
+            id: employeeId,
+            firstName,
+            lastName,
+            email,
+            password: hashedPassword,
+            role: userRole,
+            department: null,
+            designation: null,
+            wage: 0,
+            joinDate: new Date()
+        };
+
+        await UserModel.create(newUser);
+
+        // Generate token
+        const token = generateToken(employeeId, newUser.role);
+
+        res.status(201).json({
+            message: 'User registered successfully',
+            token,
+            user: {
+                id: employeeId,
+                name: `${firstName} ${lastName}`,
+                email: email,
+                role: newUser.role
+            }
+        });
+
+    } catch (error) {
+        console.error('Registration Error:', error);
+        res.status(500).json({ message: 'Server error during registration' });
+    }
+};
+
+/**
  * @desc    Auth user & get token
  * @route   POST /api/auth/login
  * @access  Public
@@ -114,6 +185,7 @@ const getMe = async (req, res) => {
 };
 
 module.exports = {
+    registerUser,
     loginUser,
     changePassword,
     getMe

@@ -132,8 +132,65 @@ const respondToLeave = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Get system statistics
+ * @route   GET /api/admin/stats
+ * @access  Private (Admin only)
+ */
+const getSystemStats = async (req, res) => {
+    try {
+        const users = await UserModel.findAll();
+        const leaves = await LeaveModel.findAll();
+        
+        res.status(200).json({
+            totalUsers: users.length,
+            totalLeaves: leaves.length,
+            pendingLeaves: leaves.filter(l => l.status === 'Pending').length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+/**
+ * @desc    Delete user
+ * @route   DELETE /api/admin/users/:id
+ * @access  Private (Admin only)
+ */
+const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await UserModel.delete(id);
+        res.status(200).json({ message: 'User deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error', error: error.message });
+    }
+};
+
+/**
+ * @desc    Get all rooms (placeholder for future implementation)
+ * @route   GET /api/admin/rooms
+ * @access  Private (Admin only)
+ */
+const getAllRooms = async (req, res) => {
+    res.status(200).json({ message: 'Rooms feature not yet implemented', rooms: [] });
+};
+
+/**
+ * @desc    Delete room (placeholder for future implementation)
+ * @route   DELETE /api/admin/rooms/:roomId
+ * @access  Private (Admin only)
+ */
+const deleteRoom = async (req, res) => {
+    res.status(200).json({ message: 'Rooms feature not yet implemented' });
+};
+
 module.exports = {
     createUser,
     getAllUsers,
-    respondToLeave
+    respondToLeave,
+    getSystemStats,
+    deleteUser,
+    getAllRooms,
+    deleteRoom
 };

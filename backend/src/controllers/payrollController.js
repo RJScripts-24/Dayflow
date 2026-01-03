@@ -162,11 +162,11 @@ const downloadSlip = async (req, res) => {
         }
 
         // Authorization check
-        if (req.user.role !== 'admin' && req.user.role !== 'hr' && req.user.id !== payroll.employee_id) {
+        if (req.user.role !== 'admin' && req.user.role !== 'hr' && req.user.id !== payroll.employeeId) {
             return res.status(403).json({ message: 'Not authorized to view this slip' });
         }
 
-        const filename = `SalarySlip_${payroll.employee_id}_${payroll.month}_${payroll.year}.pdf`;
+        const filename = `SalarySlip_${payroll.employeeId}_${payroll.month}_${payroll.year}.pdf`;
         const filePath = path.join(__dirname, '../../public/exports', filename);
 
         if (fs.existsSync(filePath)) {
@@ -182,9 +182,47 @@ const downloadSlip = async (req, res) => {
     }
 };
 
+/**
+ * @desc    Get payroll by employee ID
+ * @route   GET /api/payroll/employee/:employeeId
+ * @access  Private (Admin/HR/Manager)
+ */
+const getPayrollByEmployee = async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const payrolls = await PayrollModel.findByEmployee(employeeId);
+        res.status(200).json(payrolls);
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+/**
+ * @desc    Update payment status
+ * @route   PUT /api/payroll/:id/status
+ * @access  Private (Admin/HR)
+ */
+const updatePaymentStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, paymentDate } = req.body;
+
+        await PayrollModel.updatePaymentStatus(id, status, paymentDate);
+        
+        res.status(200).json({ 
+            message: 'Payment status updated successfully',
+            status 
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 module.exports = {
     processPayroll,
     getAllPayrolls,
     getMyPayroll,
-    downloadSlip
+    downloadSlip,
+    getPayrollByEmployee,
+    updatePaymentStatus
 };

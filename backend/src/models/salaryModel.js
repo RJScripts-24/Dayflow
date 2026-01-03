@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db.config');
-const Employee = require('./Employee');
 
 const Salary = sequelize.define('Salary', {
     id: {
@@ -9,10 +8,10 @@ const Salary = sequelize.define('Salary', {
         autoIncrement: true
     },
     employeeId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false,
         references: {
-            model: Employee,
+            model: 'users',
             key: 'id'
         },
         onDelete: 'CASCADE'
@@ -61,9 +60,5 @@ const Salary = sequelize.define('Salary', {
     tableName: 'salaries',
     timestamps: true
 });
-
-// Define Association
-Employee.hasMany(Salary, { foreignKey: 'employeeId' });
-Salary.belongsTo(Employee, { foreignKey: 'employeeId' });
 
 module.exports = Salary;

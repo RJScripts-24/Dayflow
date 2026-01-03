@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Building2 } from 'lucide-react';
+import { useAuth } from '../hooks';
 
 interface SignInProps {
   onSwitchToSignUp: () => void;
@@ -7,13 +8,14 @@ interface SignInProps {
 }
 
 export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
+  const { login, isLoading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ loginId?: string; password?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { loginId?: string; password?: string } = {};
 
@@ -29,9 +31,19 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
       return;
     }
 
-    // Handle sign in logic
-    console.log('Sign in:', { loginId, password });
-    onSignIn();
+    try {
+      // Call API login
+      await login({
+        email: loginId,
+        password: password,
+      });
+      
+      // Navigate to dashboard on success
+      onSignIn();
+    } catch (err) {
+      // Error is already handled in useAuth hook
+      console.error('Login failed:', err);
+    }
   };
 
   return (
@@ -189,10 +201,20 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
               )}
             </div>
 
+            {/* API Error Message */}
+            {authError && (
+              <div className="p-5 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-[#D64545]" style={{ fontSize: '21px' }}>
+                  {authError}
+                </p>
+              </div>
+            )}
+
             {/* Sign In Button */}
             <button
               type="submit"
-              className="w-full bg-[#4B2A6A] text-white rounded-xl h-20 transition-all duration-200 hover:bg-[#3E2158] active:scale-[0.98] mt-8"
+              disabled={isLoading}
+              className="w-full bg-[#4B2A6A] text-white rounded-xl h-20 transition-all duration-200 hover:bg-[#3E2158] active:scale-[0.98] mt-8 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 fontSize: '24px',
                 fontWeight: 500,
@@ -205,7 +227,7 @@ export function SignIn({ onSwitchToSignUp, onSignIn }: SignInProps) {
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(75, 42, 106, 0.25), 0 1px 3px rgba(0, 0, 0, 0.1)';
               }}
             >
-              Sign In
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
 
             {/* Sign Up Link */}

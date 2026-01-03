@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Eye, EyeOff, Building2, Upload, X } from 'lucide-react';
+import { useAuth } from '../hooks';
 
 interface SignUpProps {
   onSwitchToSignIn: () => void;
@@ -7,6 +8,7 @@ interface SignUpProps {
 }
 
 export function SignUp({ onSwitchToSignIn, onSignUp }: SignUpProps) {
+  const { register, isLoading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function SignUp({ onSwitchToSignIn, onSignUp }: SignUpProps) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -66,9 +68,27 @@ export function SignUp({ onSwitchToSignIn, onSignUp }: SignUpProps) {
       return;
     }
 
-    // Handle sign up logic
-    console.log('Sign up:', formData);
-    onSignUp();
+    try {
+      // Split name into firstName and lastName
+      const nameParts = formData.name.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || firstName;
+
+      // Call API register - default role is employee but for signup it could be admin
+      await register({
+        firstName,
+        lastName,
+        email: formData.email,
+        password: formData.password,
+        role: 'admin', // First signup creates admin account
+      });
+      
+      // Navigate to dashboard on success
+      onSignUp();
+    } catch (err) {
+      // Error is already handled in useAuth hook
+      console.error('Registration failed:', err);
+    }
   };
 
   return (

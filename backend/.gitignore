@@ -1,2 +1,14 @@
 node_modules/
 .env
+logs/
+*.log
+public/exports/
+public/uploads/
+*.env
+coverage/
+dist/
+tmp/
+*.pid
+*.seed
+debug.log
+npm-debug.log

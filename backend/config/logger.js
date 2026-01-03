@@ -1,44 +1,40 @@
-const { createLogger, format, transports, addColors } = require('winston');
+const winston = require('winston');
 const path = require('path');
 
-const levels = {
-    error: 0,
-    warn: 1,
-    info: 2,
-    http: 3,
-    debug: 4
-};
+// Define log format
+const logFormat = winston.format.printf(({ level, message, timestamp, stack }) => {
+    return `${timestamp} [${level.toUpperCase()}]: ${stack || message}`;
+});
 
-const colors = {
-    error: 'red',
-    warn: 'yellow',
-    info: 'green',
-    http: 'magenta',
-    debug: 'white'
-};
-
-addColors(colors);
-
-const logger = createLogger({
-    level: process.env.NODE_ENV === 'development' ? 'debug' : 'warn',
-    levels,
-    format: format.combine(
-        format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-        format.colorize({ all: true }),
-        format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
+const logger = winston.createLogger({
+    level: 'info', // Default log level
+    format: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.errors({ stack: true }), // Log full stack trace on errors
+        logFormat
     ),
     transports: [
-        new transports.Console(),
-        new transports.File({
-            filename: path.join(__dirname, '../logs/error.log'),
-            level: 'error',
-            format: format.combine(format.uncolorize(), format.json())
+        // 1. Write all logs with level 'error' and below to `error.log`
+        new winston.transports.File({ 
+            filename: path.join(__dirname, '../logs/error.log'), 
+            level: 'error' 
         }),
-        new transports.File({
-            filename: path.join(__dirname, '../logs/combined.log'),
-            format: format.combine(format.uncolorize(), format.json())
+        
+        // 2. Write all logs with level 'info' and below to `combined.log`
+        new winston.transports.File({ 
+            filename: path.join(__dirname, '../logs/combined.log') 
         })
     ]
 });
+
+// If we're not in production, log to the console with colors
+if (process.env.NODE_ENV !== 'production') {
+    logger.add(new winston.transports.Console({
+        format: winston.format.combine(
+            winston.format.colorize(),
+            winston.format.simple() // Simpler format for console
+        )
+    }));
+}
 
 module.exports = logger;

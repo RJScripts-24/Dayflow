@@ -4,7 +4,8 @@ const {
     processPayroll,
     getAllPayrolls,
     getPayrollByEmployee,
-    updatePaymentStatus
+    updatePaymentStatus,
+    downloadSlip
 } = require('../controllers/payrollController');
 const { protect } = require('../middleware/authMiddleware');
 const authorize = require('../middleware/rbacMiddleware');
@@ -16,6 +17,8 @@ router.route('/')
     .post(authorize('admin', 'hr'), processPayroll);
 
 router.get('/employee/:employeeId', authorize('admin', 'hr', 'manager'), getPayrollByEmployee);
+
+router.get('/download/:id', downloadSlip);
 
 router.put('/:id/status', authorize('admin', 'hr'), updatePaymentStatus);
 

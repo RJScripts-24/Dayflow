@@ -100,6 +100,32 @@ const AttendanceModel = {
         `;
         const [rows] = await db.execute(sql, [employeeId, days]);
         return rows;
+    },
+
+    /**
+     * Get all attendance records for today (Admin view)
+     * @returns {Promise<Array>}
+     */
+    getAllToday: async () => {
+        const sql = `
+            SELECT 
+                a.id,
+                a.employeeId,
+                a.date,
+                a.check_in_time,
+                a.check_out_time,
+                a.work_hours,
+                a.status,
+                u.firstName,
+                u.lastName,
+                u.email
+            FROM attendance a
+            LEFT JOIN users u ON a.employeeId = u.id
+            WHERE a.date = CURDATE()
+            ORDER BY a.check_in_time DESC
+        `;
+        const [rows] = await db.execute(sql);
+        return rows;
     }
 };
 

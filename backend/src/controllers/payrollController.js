@@ -80,14 +80,28 @@ const processPayroll = async (req, res) => {
 
             // H. Generate PDF Slip
             const pdfFilename = `SalarySlip_${emp.id}_${month}_${year}.pdf`;
+            const grossEarnings = finalBasic + finalHRA + finalSpecial + finalLTA + finalBonus + finalStdAllowance;
             const pdfData = {
                 companyName: 'Dayflow Systems',
                 employeeName: `${emp.firstName} ${emp.lastName}`,
                 employeeId: emp.id,
-                department: emp.department,
+                department: emp.department || 'N/A',
                 month: `${month}/${year}`,
+                totalDays: daysInMonth,
                 payableDays,
-                ...payrollData
+                basic: finalBasic.toFixed(2),
+                hra: finalHRA.toFixed(2),
+                allowances: (finalSpecial + finalLTA + finalBonus + finalStdAllowance).toFixed(2),
+                grossEarnings: grossEarnings.toFixed(2),
+                pfDeduction: finalPF.toFixed(2),
+                ptDeduction: finalPT.toFixed(2),
+                deductions: totalDeductions.toFixed(2),
+                netSalary: netPay.toFixed(2),
+                generatedDate: new Date().toLocaleDateString('en-IN', { 
+                    day: '2-digit', 
+                    month: 'short', 
+                    year: 'numeric' 
+                })
             };
 
             await generateSalarySlip(pdfData, pdfFilename);

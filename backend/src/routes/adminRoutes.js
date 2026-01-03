@@ -4,6 +4,7 @@ const { protect, admin } = require('../middleware/authMiddleware');
 const {
     getSystemStats,
     getAllUsers,
+    createUser,
     deleteUser,
     getAllRooms,
     deleteRoom,
@@ -18,6 +19,7 @@ router.use(admin);
 router.get('/stats', getSystemStats);
 
 // User Management
+router.post('/create-user', createUser);
 router.get('/users', getAllUsers);
 router.delete('/users/:id', deleteUser);
 

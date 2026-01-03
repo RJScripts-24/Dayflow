@@ -50,6 +50,16 @@ export class PayrollService {
     const response = await apiClient.put<UpdatePaymentStatusResponse>(`/payroll/${id}/status`, data);
     return response.data;
   }
+
+  /**
+   * Download salary slip PDF
+   */
+  static async downloadSalarySlip(payrollId: number): Promise<Blob> {
+    const response = await apiClient.get(`/payroll/download/${payrollId}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
 }
 
 export default PayrollService;

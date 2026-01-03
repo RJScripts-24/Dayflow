@@ -5,11 +5,14 @@ const sendEmail = async (options) => {
     // ideally, service settings are stored in .env
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        secure: false, // true for 465, false for other ports
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
-        }
+        },
+        debug: true, // Show debug output
+        logger: true // Log information
     });
 
     // 2. Define email options

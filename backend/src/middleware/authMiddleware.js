@@ -18,14 +18,18 @@ const protect = async (req, res, next) => {
             const decoded = jwt.verify(token, JWT_SECRET);
 
             // Get user from the token
-            req.user = await User.findById(decoded.id).select('-password');
+            const user = await User.findById(decoded.id);
 
-            if (!req.user) {
+            if (!user) {
                 return res.status(HTTP_STATUS.UNAUTHORIZED).json({
                     success: false,
                     message: 'Not authorized, user not found'
                 });
             }
+
+            // Remove password before attaching to request
+            const { password, ...userWithoutPassword } = user;
+            req.user = userWithoutPassword;
 
             next();
         } catch (error) {
@@ -46,7 +50,7 @@ const protect = async (req, res, next) => {
 };
 
 const admin = (req, res, next) => {
-    if (req.user && req.user.isAdmin) {
+    if (req.user && (req.user.role === 'admin' || req.user.isAdmin)) {
         next();
     } else {
         res.status(HTTP_STATUS.FORBIDDEN).json({

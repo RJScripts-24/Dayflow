@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CreateEmployeeModal } from './CreateEmployeeModal';
 import { Building2, Bell, User, LogOut, Calendar, Clock, Users, TrendingUp, Plane, Settings, Plus, Search } from 'lucide-react';
 import { Attendance } from './Attendance';
 import { EmployeeAttendance } from './EmployeeAttendance';
@@ -8,9 +9,8 @@ import { TimeOffEmployee } from './TimeOffEmployee';
 interface DashboardProps {
   onLogOut: () => void;
   onNavigateToProfile: () => void;
-  onNavigateToEmployeeProfile: () => void;
+  onNavigateToEmployeeProfile: (employeeId: string) => void;
   userRole: 'admin' | 'employee';
-  onRoleChange: (role: 'admin' | 'employee') => void;
 }
 
 type TabType = 'employees' | 'attendance' | 'timeoff';
@@ -120,11 +120,12 @@ function EmployeeCard({ employee, onClick }: { employee: Employee; onClick: () =
   );
 }
 
-export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeProfile, userRole, onRoleChange }: DashboardProps) {
+export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeProfile, userRole }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>('employees');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const mockEmployees: Employee[] = [
     { id: '1', name: 'Sarah Johnson', role: 'Senior Developer', department: 'Engineering', status: 'present', checkInTime: '09:00 AM' },
@@ -256,34 +257,6 @@ export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeP
             </button>
           </div>
 
-          {/* Center-Right: Role Switcher - Hidden on mobile */}
-          <div className="hidden lg:flex items-center gap-2 bg-white bg-opacity-10 rounded-lg p-2">
-            <button
-              onClick={() => onRoleChange('employee')}
-              className="px-6 lg:px-8 py-3 rounded-md transition-all duration-200"
-              style={{
-                backgroundColor: userRole === 'employee' ? '#2AB7CA' : 'transparent',
-                color: userRole === 'employee' ? '#ffffff' : '#B39CD0',
-                fontSize: '22px',
-                fontWeight: 500,
-              }}
-            >
-              Employee
-            </button>
-            <button
-              onClick={() => onRoleChange('admin')}
-              className="px-6 lg:px-8 py-3 rounded-md transition-all duration-200"
-              style={{
-                backgroundColor: userRole === 'admin' ? '#2AB7CA' : 'transparent',
-                color: userRole === 'admin' ? '#ffffff' : '#B39CD0',
-                fontSize: '22px',
-                fontWeight: 500,
-              }}
-            >
-              Admin
-            </button>
-          </div>
-
           {/* Right: Notification & User Avatar */}
           <div className="flex items-center gap-5 md:gap-7">
             <button className="relative p-4 hidden md:block">
@@ -367,6 +340,10 @@ export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeP
                     onMouseLeave={(e) => {
                       e.currentTarget.style.boxShadow = '0 2px 8px rgba(42, 183, 202, 0.15)';
                     }}
+                    onClick={() => {
+                      console.log('Button clicked, opening modal');
+                      setShowCreateModal(true);
+                    }}
                   >
                     <Plus className="w-8 h-8" />
                     New
@@ -377,7 +354,11 @@ export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeP
               {/* Employee Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 xl:pr-80">
                 {mockEmployees.map((employee) => (
-                  <EmployeeCard key={employee.id} employee={employee} onClick={onNavigateToEmployeeProfile} />
+                  <EmployeeCard 
+                    key={employee.id} 
+                    employee={employee} 
+                    onClick={() => onNavigateToEmployeeProfile(employee.id)} 
+                  />
                 ))}
               </div>
             </>
@@ -508,6 +489,12 @@ export function Dashboard({ onLogOut, onNavigateToProfile, onNavigateToEmployeeP
           </button>
         </div>
       </div>
-    </div>
+    {/* Create Employee Modal */}
+    <CreateEmployeeModal 
+      open={showCreateModal} 
+      onClose={() => setShowCreateModal(false)} 
+      onSuccess={() => window.location.reload()}
+    />
+  </div>
   );
 }

@@ -1,5 +1,6 @@
 const UserModel = require('../models/userModel');
 const LeaveModel = require('../models/leaveModel');
+const AttendanceModel = require('../models/attendanceModel');
 const { generateNextId } = require('../services/idGenerator');
 const { hashPassword, generateTempPassword } = require('../utils/passwordHelper');
 const sendEmail = require('../utils/emailSender');
@@ -28,6 +29,11 @@ const createUser = async (req, res) => {
         const tempPassword = generateTempPassword();
         const hashedPassword = await hashPassword(tempPassword);
 
+        console.log('🔐 Generated credentials for new employee:');
+        console.log('   Employee ID:', employeeId);
+        console.log('   Temp Password:', tempPassword);
+        console.log('   Password Length:', tempPassword.length);
+
         // 4. Create User Object
         const newUser = {
             id: employeeId,
@@ -47,35 +53,59 @@ const createUser = async (req, res) => {
 
         // 6. Send Welcome Email with Credentials
         const emailSubject = 'Welcome to Dayflow - Your Login Credentials';
-        const emailMessage = `
-            Hello ${firstName},
-            
-            Welcome to the team! Your account has been created.
-            
-            Here are your login details:
-            Employee ID: ${employeeId}
-            Temporary Password: ${tempPassword}
-            
-            Please login and change your password immediately.
-            
-            Regards,
-            HR Team
+        const emailMessage = `Hello ${firstName},
+
+Welcome to the team! Your account has been created.
+
+Here are your login details:
+Employee ID: ${employeeId}
+Temporary Password: ${tempPassword}
+
+Please login and change your password immediately.
+
+Regards,
+HR Team`;
+
+        const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #512DA8;">Welcome to Dayflow!</h2>
+                <p>Hello ${firstName},</p>
+                <p>Welcome to the team! Your account has been created.</p>
+                <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 5px 0;"><strong>Employee ID:</strong> ${employeeId}</p>
+                    <p style="margin: 5px 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
+                </div>
+                <p>Please login and change your password immediately.</p>
+                <p>Regards,<br>HR Team</p>
+            </div>
         `;
 
-        await sendEmail({
-            email: newUser.email,
-            subject: emailSubject,
-            message: emailMessage
-        });
+        let emailSent = false;
+        try {
+            await sendEmail({
+                email: newUser.email,
+                subject: emailSubject,
+                message: emailMessage,
+                html: emailHtml
+            });
+            emailSent = true;
+            console.log(`✅ Email sent successfully to ${newUser.email}`);
+        } catch (emailError) {
+            console.error('❌ Failed to send email:', emailError.message);
+            // Don't fail the entire request if email fails
+        }
 
         res.status(201).json({
-            message: 'User created successfully and email sent.',
+            message: emailSent 
+                ? 'User created successfully and email sent.' 
+                : `User created successfully, but email failed to send. Temporary password: ${tempPassword}`,
             user: {
                 id: employeeId,
                 name: `${firstName} ${lastName}`,
                 email: email,
                 role: newUser.role
-            }
+            },
+            tempPassword: !emailSent ? tempPassword : undefined // Only show if email failed
         });
 
     } catch (error) {
@@ -185,6 +215,35 @@ const deleteRoom = async (req, res) => {
     res.status(200).json({ message: 'Rooms feature not yet implemented' });
 };
 
+/**
+ * @desc    Get all attendance records for today
+ * @route   GET /api/admin/attendance
+ * @access  Private (Admin only)
+ */
+const getAllAttendance = async (req, res) => {
+    try {
+        const attendanceRecords = await AttendanceModel.getAllToday();
+        
+        // Format the response
+        const formattedRecords = attendanceRecords.map(record => ({
+            id: record.id,
+            employeeId: record.employeeId,
+            employeeName: `${record.firstName} ${record.lastName}`,
+            email: record.email,
+            date: record.date,
+            checkIn: record.check_in_time,
+            checkOut: record.check_out_time,
+            workHours: record.work_hours,
+            status: record.status
+        }));
+        
+        res.status(200).json(formattedRecords);
+    } catch (error) {
+        console.error('Error fetching attendance:', error);
+        res.status(500).json({ message: 'Server error fetching attendance' });
+    }
+};
+
 module.exports = {
     createUser,
     getAllUsers,
@@ -192,5 +251,6 @@ module.exports = {
     getSystemStats,
     deleteUser,
     getAllRooms,
-    deleteRoom
+    deleteRoom,
+    getAllAttendance
 };

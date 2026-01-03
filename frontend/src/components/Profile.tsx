@@ -1,29 +1,31 @@
 import { useState } from 'react';
+import { useAuth } from '../hooks';
 import { Building2, Bell, User, LogOut, ArrowLeft, Edit2, Plus, Info, Eye, EyeOff } from 'lucide-react';
 
 interface ProfileProps {
   onBack: () => void;
   onLogOut: () => void;
   userRole: 'admin' | 'employee';
-  onRoleChange: (role: 'admin' | 'employee') => void;
 }
+
 
 type TabType = 'resume' | 'private-info' | 'salary-info' | 'security';
 
-export function Profile({ onBack, onLogOut, userRole, onRoleChange }: ProfileProps) {
+export function Profile({ onBack, onLogOut, userRole }: ProfileProps) {
   const [activeTab, setActiveTab] = useState<TabType>('resume');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAccountNumber, setShowAccountNumber] = useState(false);
   const isAdmin = userRole === 'admin';
+  const { user } = useAuth();
 
-  // Different profile data based on role
-  const profileData = isAdmin
+  // Use real user data for admin profile
+  const profileData = isAdmin && user
     ? {
-        name: 'Michael Chen',
-        loginId: 'michael.chen@dayflow.com',
-        email: 'michael.chen@company.com',
-        mobile: '+1 (555) 987-6543',
-        company: 'Dayflow Inc.',
+        name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin',
+        loginId: user.email,
+        email: user.email,
+        mobile: user.mobile || '+1 (555) 987-6543', // fallback if not present
+        company: user.company || 'Dayflow Inc.',
         department: 'Human Resources',
         manager: 'Robert Smith',
         location: 'San Francisco, CA',

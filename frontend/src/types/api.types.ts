@@ -190,6 +190,11 @@ export interface Payroll {
   employeeId: string;
   month: number;
   year: number;
+  totalDays: number;
+  payableDays: number;
+  basic: number;
+  hra: number;
+  allowances: number;
   baseSalary: number;
   deductions?: number;
   bonuses?: number;
@@ -197,6 +202,10 @@ export interface Payroll {
   status: PaymentStatus;
   paymentDate?: string;
   createdAt?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  department?: string;
 }
 
 export interface PayrollQuery {

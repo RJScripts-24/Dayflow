@@ -1,26 +1,26 @@
-import { useState } from 'react';
-import { ArrowLeft, Edit2, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Edit2, Plus, Download } from 'lucide-react';
+import { PayrollService } from '../services/payroll.service';
+import type { Payroll } from '../types/api.types';
 
 interface EmployeeProfileProps {
   onBack: () => void;
   userRole: 'admin' | 'employee';
-  employeeData?: any; // In production, use proper type
+  employeeId?: string | null;
 }
 
 type TabType = 'resume' | 'private-info' | 'salary-info';
 
-export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('resume');
-  const isAdmin = userRole === 'admin';
-
-  // Employee data - in production, this would come from props or API
-  const employee = {
+// Mock employee database - in production, this would come from API
+const employeeDatabase: Record<string, any> = {
+  '1': {
     name: 'Sarah Johnson',
     loginId: 'sarah.j@dayflow.com',
     email: 'sarah.johnson@company.com',
     mobile: '+1 (555) 123-4567',
     company: 'Dayflow Inc.',
     department: 'Engineering',
+    role: 'Senior Developer',
     manager: 'Michael Chen',
     location: 'San Francisco, CA',
     empCode: 'EMP-2020-001',
@@ -32,7 +32,183 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
       { name: 'AWS Certified Solutions Architect', issuer: 'Amazon Web Services', year: '2023' },
       { name: 'Professional Scrum Master I', issuer: 'Scrum.org', year: '2022' },
     ],
+    dob: 'March 15, 1990',
+    address: '1234 Market Street, Apt 567\nSan Francisco, CA 94103',
+    nationality: 'United States',
+    personalEmail: 'sarah.personal@email.com',
+    dateOfJoining: 'January 10, 2020',
+    salary: {
+      monthWage: '80000',
+      yearlyWage: '960000',
+      workingDays: '5',
+      breakTime: '1',
+      components: [
+        { name: 'Basic Salary', amount: '45000', percent: '56.2%' },
+        { name: 'House Rent Allowance', amount: '20000', percent: '25.0%' },
+        { name: 'Performance Bonus', amount: '10000', percent: '12.5%' },
+        { name: 'Fixed Allowance', amount: '5000', percent: '6.3%' },
+      ],
+    },
+  },
+  '2': {
+    name: 'Michael Chen',
+    loginId: 'michael.c@dayflow.com',
+    email: 'michael.chen@company.com',
+    mobile: '+1 (555) 234-5678',
+    company: 'Dayflow Inc.',
+    department: 'Product',
+    role: 'Product Manager',
+    manager: 'Robert Smith',
+    location: 'San Francisco, CA',
+    empCode: 'EMP-2019-012',
+    about: 'Product Manager with 10+ years of experience in building and scaling SaaS products. Expert in user research, product strategy, and cross-functional team leadership. Passionate about creating products that solve real user problems.',
+    loveAboutJob: 'I love working with talented teams to bring innovative ideas to life. The challenge of balancing user needs, business goals, and technical constraints keeps me engaged every day.',
+    interests: 'Product design, behavioral psychology, and startup ecosystems. Outside work, I enjoy playing tennis, reading business books, and mentoring aspiring PMs.',
+    skills: ['Product Strategy', 'User Research', 'Agile', 'Data Analysis', 'Roadmap Planning', 'Stakeholder Management'],
+    certifications: [
+      { name: 'Certified Scrum Product Owner', issuer: 'Scrum Alliance', year: '2022' },
+      { name: 'Product Management Certification', issuer: 'Product School', year: '2021' },
+    ],
+    dob: 'July 22, 1987',
+    address: '789 Pine Street, Unit 12\nSan Francisco, CA 94109',
+    nationality: 'United States',
+    personalEmail: 'michael.chen.personal@email.com',
+    dateOfJoining: 'March 15, 2019',
+    salary: {
+      monthWage: '95000',
+      yearlyWage: '1140000',
+      workingDays: '5',
+      breakTime: '1',
+      components: [
+        { name: 'Basic Salary', amount: '52000', percent: '54.7%' },
+        { name: 'House Rent Allowance', amount: '24000', percent: '25.3%' },
+        { name: 'Performance Bonus', amount: '15000', percent: '15.8%' },
+        { name: 'Fixed Allowance', amount: '4000', percent: '4.2%' },
+      ],
+    },
+  },
+  '3': {
+    name: 'Emily Rodriguez',
+    loginId: 'emily.r@dayflow.com',
+    email: 'emily.rodriguez@company.com',
+    mobile: '+1 (555) 345-6789',
+    company: 'Dayflow Inc.',
+    department: 'Design',
+    role: 'UX Designer',
+    manager: 'Sarah Johnson',
+    location: 'Los Angeles, CA',
+    empCode: 'EMP-2021-005',
+    about: 'UX Designer with 6 years of experience crafting intuitive and delightful user experiences. Specializes in user research, interaction design, and prototyping. Committed to creating accessible and inclusive designs.',
+    loveAboutJob: 'I love the creative process of turning complex problems into simple, elegant solutions. Collaborating with users and seeing their positive reactions to our designs is incredibly rewarding.',
+    interests: 'Design thinking, accessibility, and visual storytelling. I enjoy sketching, visiting art museums, and exploring new design tools in my free time.',
+    skills: ['User Research', 'Wireframing', 'Prototyping', 'Figma', 'Adobe XD', 'Usability Testing'],
+    certifications: [
+      { name: 'Google UX Design Certificate', issuer: 'Google', year: '2023' },
+      { name: 'Interaction Design Specialization', issuer: 'Coursera', year: '2021' },
+    ],
+    dob: 'November 8, 1993',
+    address: '456 Ocean Avenue, Apt 89\nLos Angeles, CA 90291',
+    nationality: 'United States',
+    personalEmail: 'emily.rod.personal@email.com',
+    dateOfJoining: 'June 1, 2021',
+    salary: {
+      monthWage: '72000',
+      yearlyWage: '864000',
+      workingDays: '5',
+      breakTime: '1',
+      components: [
+        { name: 'Basic Salary', amount: '40000', percent: '55.6%' },
+        { name: 'House Rent Allowance', amount: '18000', percent: '25.0%' },
+        { name: 'Performance Bonus', amount: '10000', percent: '13.9%' },
+        { name: 'Fixed Allowance', amount: '4000', percent: '5.5%' },
+      ],
+    },
+  },
+  // Add more employees as needed
+};
+
+export function EmployeeProfile({ onBack, userRole, employeeId }: EmployeeProfileProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('resume');
+  const [payrollHistory, setPayrollHistory] = useState<Payroll[]>([]);
+  const [isLoadingPayroll, setIsLoadingPayroll] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const isAdmin = userRole === 'admin';
+
+  // Fetch payroll history when viewing salary info
+  useEffect(() => {
+    if (activeTab === 'salary-info' && employeeId) {
+      fetchPayrollHistory();
+    }
+  }, [activeTab, employeeId]);
+
+  const fetchPayrollHistory = async () => {
+    if (!employeeId) return;
+    
+    setIsLoadingPayroll(true);
+    try {
+      const payrolls = await PayrollService.getPayrollByEmployee(employeeId);
+      setPayrollHistory(payrolls);
+    } catch (error) {
+      console.error('Failed to fetch payroll history:', error);
+    } finally {
+      setIsLoadingPayroll(false);
+    }
   };
+
+  const handleDownloadSlip = async (payrollId: number, employeeName: string, month: number, year: number) => {
+    setDownloadingId(payrollId);
+    try {
+      const blob = await PayrollService.downloadSalarySlip(payrollId);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `SalarySlip_${employeeName.replace(/\s+/g, '_')}_${month}_${year}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download salary slip:', error);
+      alert('Failed to download salary slip. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  // Get employee data from database or use default
+  const employee = employeeId && employeeDatabase[employeeId] 
+    ? employeeDatabase[employeeId]
+    : {
+        name: 'Unknown Employee',
+        loginId: 'unknown@dayflow.com',
+        email: 'unknown@company.com',
+        mobile: '+1 (555) 000-0000',
+        company: 'Dayflow Inc.',
+        department: 'N/A',
+        role: 'N/A',
+        manager: 'N/A',
+        location: 'N/A',
+        empCode: 'N/A',
+        about: 'No information available.',
+        loveAboutJob: 'No information available.',
+        interests: 'No information available.',
+        skills: [],
+        certifications: [],
+        dob: 'N/A',
+        address: 'N/A',
+        nationality: 'N/A',
+        personalEmail: 'N/A',
+        dateOfJoining: 'N/A',
+        salary: {
+          monthWage: '0',
+          yearlyWage: '0',
+          workingDays: '0',
+          breakTime: '0',
+          components: [],
+        },
+      };
 
   return (
     <div className="min-h-screen bg-[#FFFFFF]">
@@ -60,7 +236,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                 className="w-20 h-20 rounded-full flex items-center justify-center border border-[#E2E0EA] bg-[#FFFFFF]"
               >
                 <span className="text-[#6E6A7C]" style={{ fontSize: '28px', fontWeight: 600 }}>
-                  {employee.name.split(' ').map(n => n[0]).join('')}
+                  {employee.name.split(' ').map((n: string) => n[0]).join('')}
                 </span>
               </div>
               <button
@@ -217,7 +393,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                       Skills
                     </h3>
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {employee.skills.map((skill, index) => (
+                      {employee.skills.map((skill: string, index: number) => (
                         <span 
                           key={index} 
                           className="px-3 py-1.5 bg-[#F7F6FB] text-[#4B2A6A] rounded-lg border border-[#E2E0EA]" 
@@ -242,7 +418,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                       Certifications
                     </h3>
                     <div className="space-y-4">
-                      {employee.certifications.map((cert, index) => (
+                      {employee.certifications.map((cert: any, index: number) => (
                         <div key={index} className="pb-4 border-b border-[#E2E0EA] last:border-0 last:pb-0">
                           <p className="text-[#1F1B2E] mb-1" style={{ fontSize: '14px', fontWeight: 500 }}>
                             {cert.name}
@@ -280,7 +456,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                           Date of Birth
                         </p>
                         <p className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                          March 15, 1990
+                          {employee.dob}
                         </p>
                       </div>
                       <div className="h-px bg-[#E2E0EA]" />
@@ -288,9 +464,8 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                         <p className="text-[#6E6A7C] mb-1" style={{ fontSize: '12px', fontWeight: 500 }}>
                           Residing Address
                         </p>
-                        <p className="text-[#1F1B2E]" style={{ fontSize: '14px', lineHeight: '1.5' }}>
-                          1234 Market Street, Apt 567<br />
-                          San Francisco, CA 94103
+                        <p className="text-[#1F1B2E]" style={{ fontSize: '14px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
+                          {employee.address}
                         </p>
                       </div>
                       <div className="h-px bg-[#E2E0EA]" />
@@ -299,7 +474,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                           Nationality
                         </p>
                         <p className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                          United States
+                          {employee.nationality}
                         </p>
                       </div>
                       <div className="h-px bg-[#E2E0EA]" />
@@ -308,7 +483,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                           Personal Email
                         </p>
                         <p className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                          sarah.personal@email.com
+                          {employee.personalEmail}
                         </p>
                       </div>
                     </div>
@@ -325,7 +500,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                           Date of Joining
                         </p>
                         <p className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
-                          January 10, 2020
+                          {employee.dateOfJoining}
                         </p>
                       </div>
                       <div className="h-px bg-[#E2E0EA]" />
@@ -400,7 +575,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                         Month Wage
                       </p>
                       <p className="text-[#1F1B2E] mb-1" style={{ fontSize: '22px', fontWeight: 600 }}>
-                        80000
+                        {employee.salary.monthWage}
                       </p>
                       <p className="text-[#6E6A7C]" style={{ fontSize: '12px' }}>
                         / month
@@ -411,7 +586,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                         Yearly wage
                       </p>
                       <p className="text-[#1F1B2E] mb-1" style={{ fontSize: '22px', fontWeight: 600 }}>
-                        600000
+                        {employee.salary.yearlyWage}
                       </p>
                       <p className="text-[#6E6A7C]" style={{ fontSize: '12px' }}>
                         / Yearly
@@ -422,7 +597,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                         no of working days in a week
                       </p>
                       <p className="text-[#1F1B2E]" style={{ fontSize: '22px', fontWeight: 600 }}>
-                        5
+                        {employee.salary.workingDays}
                       </p>
                     </div>
                     <div>
@@ -430,7 +605,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                         Break Time
                       </p>
                       <p className="text-[#1F1B2E]" style={{ fontSize: '22px', fontWeight: 600 }}>
-                        1 <span style={{ fontSize: '14px', fontWeight: 400 }}>hrs</span>
+                        {employee.salary.breakTime} <span style={{ fontSize: '14px', fontWeight: 400 }}>hrs</span>
                       </p>
                     </div>
                   </div>
@@ -445,14 +620,7 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                   </div>
                   <div className="p-5">
                     <div className="space-y-0">
-                      {[
-                        { name: 'Basic Salary', amount: '25000', percent: '41.6%' },
-                        { name: 'House Rent Allowance', amount: '12500', percent: '20.8%' },
-                        { name: 'Standard Allowance', amount: '1600', percent: '2.6%' },
-                        { name: 'Performance Bonus', amount: '10000', percent: '16.6%' },
-                        { name: 'Leave Travel Allowance', amount: '6000', percent: '10.0%' },
-                        { name: 'Fixed Allowance', amount: '4900', percent: '8.1%' },
-                      ].map((component, index, arr) => (
+                      {employee.salary.components.map((component: any, index: number, arr: any[]) => (
                         <div key={index}>
                           <div className="flex items-center justify-between py-3">
                             <span className="text-[#1F1B2E]" style={{ fontSize: '14px' }}>
@@ -532,6 +700,77 @@ export function EmployeeProfile({ onBack, userRole }: EmployeeProfileProps) {
                         Professional Tax deducted from the salary, the TDS will be deducted for the same.
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Payroll History */}
+                <div className="bg-[#FFFFFF] rounded-xl border border-[#E2E0EA]">
+                  <div className="px-5 py-4 border-b border-[#E2E0EA]">
+                    <h3 className="text-[#1F1B2E]" style={{ fontSize: '16px', fontWeight: 600 }}>
+                      Payroll History
+                    </h3>
+                    <p className="text-[#6E6A7C] mt-1" style={{ fontSize: '12px' }}>
+                      Your salary is automatically calculated based on attendance (check-in/check-out times)
+                    </p>
+                  </div>
+                  <div className="p-5">
+                    {isLoadingPayroll ? (
+                      <div className="text-center py-8">
+                        <p className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>Loading payroll history...</p>
+                      </div>
+                    ) : payrollHistory.length > 0 ? (
+                      <div className="space-y-3">
+                        {payrollHistory.map((payroll) => (
+                          <div
+                            key={payroll.id}
+                            className="flex items-center justify-between p-4 bg-[#F7F6FB] rounded-lg border border-[#E2E0EA] hover:border-[#4B2A6A] transition-colors"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-[#1F1B2E]" style={{ fontSize: '14px', fontWeight: 600 }}>
+                                  {new Date(payroll.year, payroll.month - 1).toLocaleDateString('en-US', { 
+                                    month: 'long', 
+                                    year: 'numeric' 
+                                  })}
+                                </span>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  payroll.status === 'Processed' 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {payroll.status}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-6 text-[#6E6A7C]" style={{ fontSize: '12px' }}>
+                                <span>Payable Days: {payroll.payableDays}/{payroll.totalDays}</span>
+                                <span>Net Salary: <span className="font-semibold text-[#1F1B2E]">₹ {payroll.netSalary.toLocaleString()}</span></span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDownloadSlip(payroll.id, employee.name, payroll.month, payroll.year)}
+                              disabled={downloadingId === payroll.id}
+                              className="flex items-center gap-2 px-4 py-2 bg-[#4B2A6A] text-white rounded-lg hover:bg-[#3A1F54] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              style={{ fontSize: '13px', fontWeight: 500 }}
+                            >
+                              {downloadingId === payroll.id ? (
+                                <>Downloading...</>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4" />
+                                  Download Slip
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-[#6E6A7C]" style={{ fontSize: '14px' }}>
+                          No payroll records found. Payroll will be generated after monthly processing.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

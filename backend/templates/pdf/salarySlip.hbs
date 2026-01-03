@@ -1,1 +1,308 @@
-<!-- The design layout for the Salary Slip -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salary Slip</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4B2A6A 0%, #6B4A9A 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .info-block {
+            flex: 1;
+        }
+        
+        .info-block h3 {
+            color: #4B2A6A;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            min-width: 140px;
+            font-size: 13px;
+        }
+        
+        .info-value {
+            color: #333;
+            font-size: 13px;
+        }
+        
+        .salary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .salary-table thead {
+            background-color: #4B2A6A;
+            color: white;
+        }
+        
+        .salary-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .salary-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        
+        .salary-table tbody tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .amount {
+            text-align: right;
+            font-weight: 600;
+        }
+        
+        .section-title {
+            color: #4B2A6A;
+            font-size: 16px;
+            font-weight: 700;
+            margin: 25px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #4B2A6A;
+        }
+        
+        .total-row {
+            background-color: #f8f4fc;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .net-pay {
+            background: linear-gradient(135deg, #4B2A6A 0%, #6B4A9A 100%);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 15px !important;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .note {
+            background-color: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .attendance-summary {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .attendance-summary h4 {
+            color: #4B2A6A;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{companyName}}</h1>
+            <p>Salary Slip for {{month}}</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Employee Info Section -->
+            <div class="info-section">
+                <div class="info-block">
+                    <h3>Employee Details</h3>
+                    <div class="info-row">
+                        <span class="info-label">Name:</span>
+                        <span class="info-value">{{employeeName}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Employee ID:</span>
+                        <span class="info-value">{{employeeId}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Department:</span>
+                        <span class="info-value">{{department}}</span>
+                    </div>
+                </div>
+                
+                <div class="info-block">
+                    <h3>Payment Period</h3>
+                    <div class="info-row">
+                        <span class="info-label">Month/Year:</span>
+                        <span class="info-value">{{month}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total Days:</span>
+                        <span class="info-value">{{totalDays}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Payable Days:</span>
+                        <span class="info-value">{{payableDays}}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Attendance Summary -->
+            <div class="attendance-summary">
+                <h4>Attendance Summary</h4>
+                <p style="font-size: 13px; color: #666;">
+                    Your salary has been calculated based on <strong>{{payableDays}} working days</strong> out of {{totalDays}} total days in the month.
+                    This includes your present days, approved leaves, and holidays. Loss of Pay (LOP) has been applied for absent days.
+                </p>
+            </div>
+            
+            <!-- Earnings Section -->
+            <h2 class="section-title">Earnings</h2>
+            <table class="salary-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th class="amount">Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Basic Salary</td>
+                        <td class="amount">{{basic}}</td>
+                    </tr>
+                    <tr>
+                        <td>House Rent Allowance (HRA)</td>
+                        <td class="amount">{{hra}}</td>
+                    </tr>
+                    <tr>
+                        <td>Other Allowances</td>
+                        <td class="amount">{{allowances}}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Gross Earnings</td>
+                        <td class="amount">{{grossEarnings}}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Deductions Section -->
+            <h2 class="section-title">Deductions</h2>
+            <table class="salary-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th class="amount">Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Provident Fund (PF)</td>
+                        <td class="amount">{{pfDeduction}}</td>
+                    </tr>
+                    <tr>
+                        <td>Professional Tax (PT)</td>
+                        <td class="amount">{{ptDeduction}}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Total Deductions</td>
+                        <td class="amount">{{deductions}}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Net Pay Section -->
+            <table class="salary-table">
+                <tbody>
+                    <tr class="net-pay">
+                        <td>NET PAY</td>
+                        <td class="amount">₹ {{netSalary}}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Note -->
+            <div class="note">
+                <strong>Note:</strong> This is a system-generated salary slip. Salary is calculated automatically based on your attendance records (check-in and check-out times).
+                For any queries, please contact HR Department.
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+                <p>This is a computer-generated document and does not require a signature.</p>
+                <p>Generated on: {{generatedDate}}</p>
+                <p>&copy; 2026 {{companyName}}. All Rights Reserved.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -16,6 +16,7 @@ type PageType = 'signin' | 'signup' | 'dashboard' | 'profile' | 'employee-profil
 export default function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('signin');
   const [userRole, setUserRole] = useState<UserRole>(USER_ROLES.EMPLOYEE);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Check authentication on mount and protect dashboard access
   useEffect(() => {
@@ -93,20 +94,22 @@ export default function App() {
           onBack={() => setCurrentPage('dashboard')}
           onLogOut={handleLogout}
           userRole={userRole}
-          onRoleChange={setUserRole}
         />
       ) : currentPage === 'employee-profile' ? (
         <EmployeeProfile 
           onBack={() => setCurrentPage('dashboard')}
           userRole={userRole}
+          employeeId={selectedEmployeeId}
         />
       ) : (
         <DashboardPage 
           onLogOut={handleLogout}
           onNavigateToProfile={() => setCurrentPage('profile')}
-          onNavigateToEmployeeProfile={() => setCurrentPage('employee-profile')}
+          onNavigateToEmployeeProfile={(employeeId: string) => {
+            setSelectedEmployeeId(employeeId);
+            setCurrentPage('employee-profile');
+          }}
           userRole={userRole}
-          onRoleChange={setUserRole}
         />
       )}
     </div>

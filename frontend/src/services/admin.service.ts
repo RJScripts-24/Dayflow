@@ -16,7 +16,37 @@ import type {
   DeleteRoomResponse,
 } from '../types/api.types';
 
+export interface CreateUserRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  department: string;
+  designation: string;
+  wage: number;
+  joinDate: string;
+}
+
+export interface CreateUserResponse {
+  message: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  tempPassword?: string;
+}
+
 export class AdminService {
+  /**
+   * Create a new employee/user
+   */
+  static async createUser(data: CreateUserRequest): Promise<CreateUserResponse> {
+    const response = await apiClient.post<CreateUserResponse>('/admin/create-user', data);
+    return response.data;
+  }
+
   /**
    * Get system statistics
    */

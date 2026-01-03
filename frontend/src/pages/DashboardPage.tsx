@@ -15,6 +15,7 @@ import { Attendance } from '../components/Attendance';
 import { EmployeeAttendance } from '../components/EmployeeAttendance';
 import { TimeOffAdmin } from '../components/TimeOffAdmin';
 import { TimeOffEmployee } from '../components/TimeOffEmployee';
+import { CreateEmployeeModal } from '../components/CreateEmployeeModal';
 import { USER_ROLES, EMPLOYEE_STATUS, type UserRole } from '../utils/constants';
 
 interface DashboardPageProps {
@@ -22,7 +23,6 @@ interface DashboardPageProps {
   onNavigateToProfile: () => void;
   onNavigateToEmployeeProfile: () => void;
   userRole: UserRole;
-  onRoleChange: (role: UserRole) => void;
 }
 
 type TabType = 'employees' | 'attendance' | 'timeoff';
@@ -31,11 +31,16 @@ export function DashboardPage({
   onLogOut, 
   onNavigateToProfile, 
   onNavigateToEmployeeProfile, 
-  userRole, 
-  onRoleChange 
+  userRole
 }: DashboardPageProps) {
   const [activeTab, setActiveTab] = useState<TabType>('employees');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleEmployeeCreated = () => {
+    setRefreshKey(prev => prev + 1); // Trigger refresh
+  };
 
   const isAdmin = userRole === USER_ROLES.ADMIN;
 
@@ -85,7 +90,7 @@ export function DashboardPage({
                     placeholder="Search employees..."
                     className="flex-1 md:flex-none md:w-[280px]"
                   />
-                  <Button icon={Plus}>New</Button>
+                  <Button icon={Plus} onClick={() => setShowCreateModal(true)}>New</Button>
                 </>
               }
             />
@@ -116,10 +121,9 @@ export function DashboardPage({
         onTabChange={(tab) => setActiveTab(tab as TabType)}
         tabs={navigationTabs}
         userRole={userRole}
-        onRoleChange={onRoleChange}
         onNavigateToProfile={onNavigateToProfile}
         onLogOut={onLogOut}
-        showRoleSwitcher={true}
+        showRoleSwitcher={false}
         showTabs={true}
       />
 
@@ -143,6 +147,13 @@ export function DashboardPage({
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as TabType)}
         tabs={mobileNavTabs}
+      />
+
+      {/* Create Employee Modal */}
+      <CreateEmployeeModal 
+        open={showCreateModal} 
+        onClose={() => setShowCreateModal(false)} 
+        onSuccess={handleEmployeeCreated}
       />
     </div>
   );

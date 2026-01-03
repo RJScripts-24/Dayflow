@@ -55,10 +55,12 @@ const registerUser = async (req, res) => {
         const hashedPassword = await hashPassword(password);
 
         // Create user
-        // Only allow valid roles
-        const allowedRoles = ['admin', 'hr', 'employee'];
+        // Determine role based on email domain
         let userRole = 'employee';
-        if (role && allowedRoles.includes(role)) {
+        if (email.toLowerCase().endsWith('@dayflow.com')) {
+            userRole = 'admin';
+        } else if (role && ['admin', 'hr', 'employee'].includes(role)) {
+            // Allow role override only for non-dayflow.com emails
             userRole = role;
         }
         const newUser = {
@@ -105,29 +107,47 @@ const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        console.log('🔐 Login attempt:', { 
+            email, 
+            passwordLength: password?.length,
+            passwordPreview: password?.substring(0, 3) + '***'
+        });
+
         // Input validation
         if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password are required' });
+            return res.status(400).json({ message: 'Email/Employee ID and password are required' });
         }
 
-        // Validate email format
+        // 1. Check if user exists by email OR employee ID
+        let user;
+        
+        // Check if input looks like an email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({ message: 'Invalid email format' });
+        
+        if (emailRegex.test(email)) {
+            // Login with email
+            console.log('🔍 Looking up by email...');
+            user = await UserModel.findByEmail(email);
+        } else {
+            // Login with employee ID
+            console.log('🔍 Looking up by employee ID...');
+            user = await UserModel.findById(email);
         }
-
-        // 1. Check if email exists
-        const user = await UserModel.findByEmail(email);
 
         if (!user) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            console.log('❌ User not found');
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
+
+        console.log('✅ User found:', { id: user.id, email: user.email, hasPassword: !!user.password });
 
         // 2. Check if password matches
         const isMatch = await matchPassword(password, user.password);
 
+        console.log('🔑 Password match:', isMatch);
+
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: 'Invalid credentials' });
         }
 
         // 3. Generate Token

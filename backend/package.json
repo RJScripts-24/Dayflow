@@ -1,0 +1,19 @@
+{
+  "name": "dayflow-backend",
+  "version": "1.0.0",
+  "description": "Backend for Dayflow Payroll System",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.9.7",
+    "multer": "^1.4.5-lts.1",
+    "jsonwebtoken": "^9.0.2",
+    "bcrypt": "^5.1.1",
+    "nodemailer": "^6.9.8",
+    "handlebars": "^4.7.8",
+    "pdfkit": "^0.13.0"
+  }
+}

@@ -1,130 +1,139 @@
-const User = require('../models/User');
-const Room = require('../models/Room');
-const { HTTP_STATUS } = require('../config/constants');
-const logger = require('../config/logger');
+const UserModel = require('../models/userModel');
+const LeaveModel = require('../models/leaveModel');
+const { generateNextId } = require('../services/idGenerator');
+const { hashPassword, generateTempPassword } = require('../utils/passwordHelper');
+const sendEmail = require('../utils/emailSender');
 
-const getSystemStats = async (req, res) => {
+/**
+ * @desc    Create a new User/Employee
+ * @route   POST /api/admin/create-user
+ * @access  Private (Admin only)
+ */
+const createUser = async (req, res) => {
     try {
-        const totalUsers = await User.countDocuments();
-        const totalRooms = await Room.countDocuments();
-        const activeRooms = await Room.countDocuments({ 'users.0': { $exists: true } });
+        const { firstName, lastName, email, role, department, designation, wage, joinDate } = req.body;
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: {
-                totalUsers,
-                totalRooms,
-                activeRooms
+        // 1. Check if user already exists
+        const userExists = await UserModel.findByEmail(email);
+        if (userExists) {
+            return res.status(400).json({ message: 'User with this email already exists' });
+        }
+
+        // 2. Generate Custom Employee ID (e.g., EMP20260001)
+        const lastUser = await UserModel.getLastId(); 
+        const lastId = lastUser ? lastUser.id : null;
+        const employeeId = generateNextId(lastId);
+
+        // 3. Generate and Hash Temporary Password
+        const tempPassword = generateTempPassword();
+        const hashedPassword = await hashPassword(tempPassword);
+
+        // 4. Create User Object
+        const newUser = {
+            id: employeeId,
+            firstName,
+            lastName,
+            email,
+            password: hashedPassword,
+            role: role || 'employee',
+            department,
+            designation,
+            wage: wage || 0, // Base wage for Salary Engine
+            joinDate: joinDate || new Date()
+        };
+
+        // 5. Save to Database
+        await UserModel.create(newUser);
+
+        // 6. Send Welcome Email with Credentials
+        const emailSubject = 'Welcome to Dayflow - Your Login Credentials';
+        const emailMessage = `
+            Hello ${firstName},
+            
+            Welcome to the team! Your account has been created.
+            
+            Here are your login details:
+            Employee ID: ${employeeId}
+            Temporary Password: ${tempPassword}
+            
+            Please login and change your password immediately.
+            
+            Regards,
+            HR Team
+        `;
+
+        await sendEmail({
+            email: newUser.email,
+            subject: emailSubject,
+            message: emailMessage
+        });
+
+        res.status(201).json({
+            message: 'User created successfully and email sent.',
+            user: {
+                id: employeeId,
+                name: `${firstName} ${lastName}`,
+                email: email,
+                role: newUser.role
             }
         });
+
     } catch (error) {
-        logger.error(`Admin Stats Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to retrieve system statistics'
-        });
+        console.error('Error in createUser:', error);
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
+/**
+ * @desc    Get all users
+ * @route   GET /api/admin/users
+ * @access  Private (Admin only)
+ */
 const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({})
-            .select('-password')
-            .sort({ createdAt: -1 });
-
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            count: users.length,
-            data: users
-        });
+        const users = await UserModel.findAll();
+        res.status(200).json(users);
     } catch (error) {
-        logger.error(`Fetch Users Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to retrieve users'
-        });
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
-const deleteUser = async (req, res) => {
+/**
+ * @desc    Approve or Reject Leave Request
+ * @route   PUT /api/admin/leave/:id
+ * @access  Private (Admin only)
+ */
+const respondToLeave = async (req, res) => {
     try {
-        const { id } = req.params;
-        const user = await User.findById(id);
+        const { leaveId } = req.params;
+        const { status, adminResponse } = req.body; // status: 'Approved' or 'Rejected'
 
-        if (!user) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'User not found'
-            });
+        if (!['Approved', 'Rejected'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status. Use Approved or Rejected.' });
         }
 
-        await User.findByIdAndDelete(id);
-        logger.info(`User deleted by admin: ${id}`);
+        const updatedLeave = await LeaveModel.updateStatus(leaveId, status, adminResponse);
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            message: 'User successfully deleted'
-        });
-    } catch (error) {
-        logger.error(`Delete User Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to delete user'
-        });
-    }
-};
-
-const getAllRooms = async (req, res) => {
-    try {
-        const rooms = await Room.find({})
-            .sort({ createdAt: -1 });
-
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            count: rooms.length,
-            data: rooms
-        });
-    } catch (error) {
-        logger.error(`Fetch Rooms Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to retrieve rooms'
-        });
-    }
-};
-
-const deleteRoom = async (req, res) => {
-    try {
-        const { roomId } = req.params;
-        const room = await Room.findOne({ roomId });
-
-        if (!room) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'Room not found'
-            });
+        if (!updatedLeave) {
+            return res.status(404).json({ message: 'Leave request not found' });
         }
 
-        await Room.findOneAndDelete({ roomId });
-        logger.info(`Room force-closed by admin: ${roomId}`);
+        // Optional: Send email notification to employee about the decision
+        // const employee = await UserModel.findById(updatedLeave.employeeId);
+        // await sendEmail(...)
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            message: 'Room successfully deleted'
+        res.status(200).json({
+            message: `Leave request ${status}`,
+            data: updatedLeave
         });
+
     } catch (error) {
-        logger.error(`Delete Room Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to delete room'
-        });
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
 module.exports = {
-    getSystemStats,
+    createUser,
     getAllUsers,
-    deleteUser,
-    getAllRooms,
-    deleteRoom
+    respondToLeave
 };

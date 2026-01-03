@@ -1,157 +1,190 @@
-const Payroll = require('../models/Payroll');
-const Employee = require('../models/Employee');
-const { HTTP_STATUS } = require('../config/constants');
-const logger = require('../config/logger');
+const fs = require('fs');
+const path = require('path');
+const PayrollModel = require('../models/payrollModel');
+const UserModel = require('../models/userModel');
+const AttendanceModel = require('../models/attendanceModel');
+const { calculateSalaryStructure } = require('../services/salaryEngine');
+const { calculatePayableDays } = require('../services/attendanceCalculator');
+const { generateSalarySlip } = require('../services/pdfService');
+const { getMonthRange } = require('../utils/dateHelpers');
 
+/**
+ * @desc    Run Payroll for a specific month
+ * @route   POST /api/payroll/process
+ * @access  Private (Admin/HR)
+ */
 const processPayroll = async (req, res) => {
     try {
-        const { employeeId, payPeriod, basicSalary, allowances, deductions, paymentDate } = req.body;
+        const { month, year } = req.body; // e.g., month: 1 (Jan), year: 2026
 
-        if (!employeeId || !payPeriod || !basicSalary) {
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'Employee ID, pay period, and basic salary are required'
+        if (!month || !year) {
+            return res.status(400).json({ message: 'Please provide month and year' });
+        }
+
+        // 1. Get Date Range for the month (to fetch attendance)
+        const { start, end } = getMonthRange(year, month);
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // 2. Fetch all active employees
+        const employees = await UserModel.findAllActive();
+        
+        const processedResults = [];
+
+        // 3. Loop through each employee and calculate
+        for (const emp of employees) {
+            // A. Fetch Attendance Records
+            const attendanceRecords = await AttendanceModel.findByDateRange(emp.id, start, end);
+            
+            // B. Calculate Payable Days (Present + Leaves + Holidays)
+            // Note: In a real app, you'd also fetch approved paid leaves and holidays here
+            const payableDays = calculatePayableDays(attendanceRecords);
+            
+            // C. Get Standard Salary Structure (Based on full month)
+            const standardStructure = calculateSalaryStructure(emp.wage);
+
+            // D. Calculate Pro-rated Earnings (Loss of Pay Logic)
+            // Formula: (Component / DaysInMonth) * PayableDays
+            const proRationFactor = payableDays / daysInMonth;
+
+            const finalBasic = standardStructure.components.basic * proRationFactor;
+            const finalHRA = standardStructure.components.hra * proRationFactor;
+            const finalSpecial = standardStructure.components.fixedAllowance * proRationFactor;
+            const finalLTA = standardStructure.components.lta * proRationFactor;
+            const finalBonus = standardStructure.components.performanceBonus * proRationFactor;
+            const finalStdAllowance = standardStructure.components.standardAllowance * proRationFactor;
+
+            // E. Calculate Deductions (PF is usually on earned basic)
+            const finalPF = finalBasic * 0.12; 
+            const finalPT = 200; // Fixed
+            const totalDeductions = finalPF + finalPT;
+
+            const netPay = (finalBasic + finalHRA + finalSpecial + finalLTA + finalBonus + finalStdAllowance) - totalDeductions;
+
+            // F. Create Payroll Record Object
+            const payrollData = {
+                employeeId: emp.id,
+                month,
+                year,
+                totalDays: daysInMonth,
+                payableDays,
+                basic: finalBasic,
+                hra: finalHRA,
+                allowances: finalSpecial + finalLTA + finalBonus + finalStdAllowance,
+                deductions: totalDeductions,
+                netSalary: netPay,
+                status: 'Processed'
+            };
+
+            // G. Save to Database
+            const savedPayroll = await PayrollModel.create(payrollData);
+
+            // H. Generate PDF Slip
+            const pdfFilename = `SalarySlip_${emp.id}_${month}_${year}.pdf`;
+            const pdfData = {
+                companyName: 'Dayflow Systems',
+                employeeName: `${emp.firstName} ${emp.lastName}`,
+                employeeId: emp.id,
+                department: emp.department,
+                month: `${month}/${year}`,
+                payableDays,
+                ...payrollData
+            };
+
+            await generateSalarySlip(pdfData, pdfFilename);
+
+            processedResults.push({
+                employee: emp.email,
+                netPay: netPay.toFixed(2),
+                status: 'Success'
             });
         }
 
-        const employee = await Employee.findById(employeeId);
-        if (!employee) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'Employee not found'
-            });
-        }
-
-        // Check if payroll already exists for this period
-        const existingPayroll = await Payroll.findOne({ employee: employeeId, payPeriod });
-        if (existingPayroll) {
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'Payroll for this period already exists'
-            });
-        }
-
-        const totalAllowances = allowances || 0;
-        const totalDeductions = deductions || 0;
-        const netSalary = basicSalary + totalAllowances - totalDeductions;
-
-        const payroll = await Payroll.create({
-            employee: employeeId,
-            payPeriod,
-            basicSalary,
-            allowances: totalAllowances,
-            deductions: totalDeductions,
-            netSalary,
-            paymentDate: paymentDate || new Date(),
-            status: 'Processed'
+        res.status(200).json({
+            message: 'Payroll processing completed',
+            results: processedResults
         });
 
-        logger.info(`Payroll processed for Employee ID: ${employeeId}, Period: ${payPeriod}`);
-
-        res.status(HTTP_STATUS.CREATED).json({
-            success: true,
-            data: payroll
-        });
     } catch (error) {
-        logger.error(`Process Payroll Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to process payroll'
-        });
+        console.error('Payroll Process Error:', error);
+        res.status(500).json({ message: 'Server error processing payroll' });
     }
 };
 
+/**
+ * @desc    Get All Payroll Records (History)
+ * @route   GET /api/payroll/history
+ * @access  Private (Admin/HR)
+ */
 const getAllPayrolls = async (req, res) => {
     try {
-        const payrolls = await Payroll.find({})
-            .populate('employee', 'firstName lastName email position')
-            .sort({ paymentDate: -1 });
+        const { month, year } = req.query;
+        let payrolls;
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            count: payrolls.length,
-            data: payrolls
-        });
+        if (month && year) {
+            payrolls = await PayrollModel.findByMonth(month, year);
+        } else {
+            payrolls = await PayrollModel.findAll();
+        }
+
+        res.status(200).json(payrolls);
     } catch (error) {
-        logger.error(`Fetch All Payrolls Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to retrieve payroll records'
-        });
+        res.status(500).json({ message: 'Server Error' });
     }
 };
 
-const getPayrollByEmployee = async (req, res) => {
+/**
+ * @desc    Get My Payroll History
+ * @route   GET /api/payroll/my-history
+ * @access  Private (Employee)
+ */
+const getMyPayroll = async (req, res) => {
     try {
-        const { employeeId } = req.params;
-
-        const payrolls = await Payroll.find({ employee: employeeId })
-            .sort({ paymentDate: -1 });
-
-        if (!payrolls || payrolls.length === 0) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'No payroll records found for this employee'
-            });
-        }
-
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            count: payrolls.length,
-            data: payrolls
-        });
+        const employeeId = req.user.id;
+        const payrolls = await PayrollModel.findByEmployee(employeeId);
+        res.status(200).json(payrolls);
     } catch (error) {
-        logger.error(`Fetch Employee Payroll Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to retrieve employee payroll history'
-        });
+        res.status(500).json({ message: 'Server Error' });
     }
 };
 
-const updatePaymentStatus = async (req, res) => {
+/**
+ * @desc    Download Salary Slip PDF
+ * @route   GET /api/payroll/download/:id
+ * @access  Private (Owner/Admin)
+ */
+const downloadSlip = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { status } = req.body;
-
-        if (!['Pending', 'Processed', 'Paid'].includes(status)) {
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'Invalid status provided'
-            });
-        }
-
-        const payroll = await Payroll.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true }
-        );
+        const payrollId = req.params.id;
+        const payroll = await PayrollModel.findById(payrollId);
 
         if (!payroll) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'Payroll record not found'
-            });
+            return res.status(404).json({ message: 'Payroll record not found' });
         }
 
-        logger.info(`Payroll status updated: ${id} to ${status}`);
+        // Authorization check
+        if (req.user.role !== 'admin' && req.user.role !== 'hr' && req.user.id !== payroll.employee_id) {
+            return res.status(403).json({ message: 'Not authorized to view this slip' });
+        }
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: payroll
-        });
+        const filename = `SalarySlip_${payroll.employee_id}_${payroll.month}_${payroll.year}.pdf`;
+        const filePath = path.join(__dirname, '../../public/exports', filename);
+
+        if (fs.existsSync(filePath)) {
+            res.download(filePath);
+        } else {
+            // Regenerate if missing (Optional resilience feature)
+            res.status(404).json({ message: 'Slip file not found on server' });
+        }
+
     } catch (error) {
-        logger.error(`Update Payroll Status Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to update payment status'
-        });
+        console.error('Download Error:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 };
 
 module.exports = {
     processPayroll,
     getAllPayrolls,
-    getPayrollByEmployee,
-    updatePaymentStatus
+    getMyPayroll,
+    downloadSlip
 };

@@ -1,157 +1,151 @@
-const Employee = require('../models/Employee');
-const { HTTP_STATUS } = require('../config/constants');
-const logger = require('../config/logger');
+const UserModel = require('../models/userModel');
+const AttendanceModel = require('../models/attendanceModel');
+const LeaveModel = require('../models/leaveModel');
+const { calculateWorkHours, determineAttendanceStatus } = require('../services/attendanceCalculator');
 
-const createEmployee = async (req, res) => {
+/**
+ * @desc    Get current employee profile
+ * @route   GET /api/emp/profile
+ * @access  Private (Employee)
+ */
+const getProfile = async (req, res) => {
     try {
-        const { firstName, lastName, email, position, department, salary } = req.body;
+        const userId = req.user.id; // From authMiddleware
+        const user = await UserModel.findById(userId);
 
-        if (!firstName || !lastName || !email || !position) {
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'Please provide all required fields'
-            });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
 
-        const employeeExists = await Employee.findOne({ email });
-        if (employeeExists) {
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'Employee with this email already exists'
-            });
-        }
+        // Remove sensitive data
+        delete user.password;
 
-        const employee = await Employee.create({
-            firstName,
-            lastName,
-            email,
-            position,
-            department,
-            salary
-        });
-
-        logger.info(`New employee created: ${email}`);
-
-        res.status(HTTP_STATUS.CREATED).json({
-            success: true,
-            data: employee
-        });
+        res.status(200).json(user);
     } catch (error) {
-        logger.error(`Create Employee Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to create employee'
-        });
+        console.error('Error fetching profile:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 };
 
-const getEmployees = async (req, res) => {
+/**
+ * @desc    Mark Attendance (Check-in / Check-out)
+ * @route   POST /api/emp/attendance
+ * @access  Private (Employee)
+ */
+const markAttendance = async (req, res) => {
     try {
-        const employees = await Employee.find({}).sort({ createdAt: -1 });
+        const userId = req.user.id;
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const now = new Date();
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            count: employees.length,
-            data: employees
-        });
-    } catch (error) {
-        logger.error(`Fetch Employees Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to retrieve employees'
-        });
-    }
-};
+        // 1. Check if an entry already exists for today
+        const existingRecord = await AttendanceModel.findByDate(userId, today);
 
-const getEmployeeById = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const employee = await Employee.findById(id);
+        if (!existingRecord) {
+            // --- SCENARIO A: CHECK-IN ---
+            await AttendanceModel.createCheckIn(userId, today, now);
+            
+            return res.status(201).json({
+                message: 'Checked in successfully',
+                checkInTime: now,
+                status: 'Present' // Default status
+            });
 
-        if (!employee) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'Employee not found'
+        } else if (existingRecord.check_out_time === null) {
+            // --- SCENARIO B: CHECK-OUT ---
+            // Calculate duration immediately
+            const checkInTime = new Date(existingRecord.check_in_time);
+            const workHours = calculateWorkHours(checkInTime, now);
+            const status = determineAttendanceStatus(workHours);
+
+            await AttendanceModel.updateCheckOut(existingRecord.id, now, workHours, status);
+
+            return res.status(200).json({
+                message: 'Checked out successfully',
+                checkInTime: existingRecord.check_in_time,
+                checkOutTime: now,
+                workHours: workHours,
+                status: status
+            });
+
+        } else {
+            // --- SCENARIO C: ALREADY COMPLETED ---
+            return res.status(400).json({ 
+                message: 'Attendance for today is already completed.' 
             });
         }
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: employee
-        });
     } catch (error) {
-        logger.error(`Fetch Employee By ID Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to retrieve employee details'
-        });
+        console.error('Attendance Error:', error);
+        res.status(500).json({ message: 'Server error marking attendance' });
     }
 };
 
-const updateEmployee = async (req, res) => {
+/**
+ * @desc    View Personal Attendance History
+ * @route   GET /api/emp/attendance/history
+ * @access  Private (Employee)
+ */
+const getAttendanceHistory = async (req, res) => {
     try {
-        const { id } = req.params;
-        let employee = await Employee.findById(id);
+        const userId = req.user.id;
+        const { month, year } = req.query; // Optional filters
 
-        if (!employee) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'Employee not found'
-            });
+        let history;
+        if (month && year) {
+            history = await AttendanceModel.findByMonth(userId, month, year);
+        } else {
+            // Default: Last 30 days
+            history = await AttendanceModel.getRecent(userId, 30);
         }
 
-        employee = await Employee.findByIdAndUpdate(id, req.body, {
-            new: true,
-            runValidators: true
-        });
-
-        logger.info(`Employee updated: ${id}`);
-
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: employee
-        });
+        res.status(200).json(history);
     } catch (error) {
-        logger.error(`Update Employee Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to update employee'
-        });
+        console.error('History Error:', error);
+        res.status(500).json({ message: 'Server error fetching history' });
     }
 };
 
-const deleteEmployee = async (req, res) => {
+/**
+ * @desc    Apply for Leave
+ * @route   POST /api/emp/leave
+ * @access  Private (Employee)
+ */
+const applyForLeave = async (req, res) => {
     try {
-        const { id } = req.params;
-        const employee = await Employee.findById(id);
+        const userId = req.user.id;
+        const { leaveType, startDate, endDate, reason } = req.body;
 
-        if (!employee) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({
-                success: false,
-                message: 'Employee not found'
-            });
+        // Validation
+        if (!startDate || !endDate || !reason) {
+            return res.status(400).json({ message: 'Please provide all required fields' });
         }
 
-        await Employee.findByIdAndDelete(id);
-        logger.info(`Employee deleted: ${id}`);
+        const newLeave = {
+            employeeId: userId,
+            leaveType,
+            startDate,
+            endDate,
+            reason,
+            status: 'Pending'
+        };
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            message: 'Employee successfully deleted'
+        const result = await LeaveModel.create(newLeave);
+
+        res.status(201).json({
+            message: 'Leave request submitted successfully',
+            leaveId: result.insertId
         });
+
     } catch (error) {
-        logger.error(`Delete Employee Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Failed to delete employee'
-        });
+        console.error('Leave Application Error:', error);
+        res.status(500).json({ message: 'Server error submitting leave' });
     }
 };
 
 module.exports = {
-    createEmployee,
-    getEmployees,
-    getEmployeeById,
-    updateEmployee,
-    deleteEmployee
+    getProfile,
+    markAttendance,
+    getAttendanceHistory,
+    applyForLeave
 };

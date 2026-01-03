@@ -1,120 +1,120 @@
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const { HTTP_STATUS, JWT_SECRET } = require('../config/constants');
-const logger = require('../config/logger');
+const UserModel = require('../models/userModel');
+const { matchPassword, hashPassword } = require('../utils/passwordHelper');
 
-const generateToken = (id) => {
-    return jwt.sign({ id }, JWT_SECRET, {
-        expiresIn: '30d'
+// Helper to generate JWT
+const generateToken = (id, role) => {
+    return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+        expiresIn: '24h'
     });
 };
 
-const registerUser = async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-
-        if (!username || !email || !password) {
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'Please provide all required fields'
-            });
-        }
-
-        const userExists = await User.findOne({ email });
-
-        if (userExists) {
-            return res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'User already exists'
-            });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const user = await User.create({
-            username,
-            email,
-            password: hashedPassword
-        });
-
-        if (user) {
-            res.status(HTTP_STATUS.CREATED).json({
-                success: true,
-                data: {
-                    _id: user.id,
-                    username: user.username,
-                    email: user.email,
-                    token: generateToken(user.id)
-                }
-            });
-        } else {
-            res.status(HTTP_STATUS.BAD_REQUEST).json({
-                success: false,
-                message: 'Invalid user data'
-            });
-        }
-    } catch (error) {
-        logger.error(`Register Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Server Error'
-        });
-    }
-};
-
+/**
+ * @desc    Auth user & get token
+ * @route   POST /api/auth/login
+ * @access  Public
+ */
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await User.findOne({ email });
+        // 1. Check if email exists
+        const user = await UserModel.findByEmail(email);
 
-        if (user && (await bcrypt.compare(password, user.password))) {
-            res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: {
-                    _id: user.id,
-                    username: user.username,
-                    email: user.email,
-                    isAdmin: user.isAdmin,
-                    token: generateToken(user.id)
-                }
-            });
-        } else {
-            res.status(HTTP_STATUS.UNAUTHORIZED).json({
-                success: false,
-                message: 'Invalid credentials'
-            });
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
-    } catch (error) {
-        logger.error(`Login Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Server Error'
+
+        // 2. Check if password matches
+        const isMatch = await matchPassword(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // 3. Generate Token
+        const token = generateToken(user.id, user.role);
+
+        res.json({
+            message: 'Login successful',
+            token,
+            user: {
+                id: user.id,
+                name: `${user.firstName} ${user.lastName}`,
+                email: user.email,
+                role: user.role,
+                department: user.department,
+                avatar: user.avatar // Assuming avatar path is stored
+            }
         });
+
+    } catch (error) {
+        console.error('Login Error:', error);
+        res.status(500).json({ message: 'Server error during login' });
     }
 };
 
+/**
+ * @desc    Change Password (Required for first-time login)
+ * @route   PUT /api/auth/change-password
+ * @access  Private
+ */
+const changePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const userId = req.user.id; // From authMiddleware
+
+        // 1. Get current user password hash
+        const user = await UserModel.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // 2. Verify Old Password
+        const isMatch = await matchPassword(oldPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Incorrect old password' });
+        }
+
+        // 3. Hash New Password
+        const hashedPassword = await hashPassword(newPassword);
+
+        // 4. Update in Database
+        await UserModel.updatePassword(userId, hashedPassword);
+
+        res.json({ message: 'Password updated successfully' });
+
+    } catch (error) {
+        console.error('Change Password Error:', error);
+        res.status(500).json({ message: 'Server error while updating password' });
+    }
+};
+
+/**
+ * @desc    Get current logged in user
+ * @route   GET /api/auth/me
+ * @access  Private
+ */
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        const user = await UserModel.findById(req.user.id);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-        res.status(HTTP_STATUS.OK).json({
-            success: true,
-            data: user
-        });
+        // Return user data without password
+        const { password, ...userData } = user;
+        
+        res.json(userData);
     } catch (error) {
-        logger.error(`Auth Check Error: ${error.message}`);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: 'Server Error'
-        });
+        res.status(500).json({ message: 'Server error' });
     }
 };
 
 module.exports = {
-    registerUser,
     loginUser,
+    changePassword,
     getMe
 };

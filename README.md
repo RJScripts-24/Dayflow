@@ -714,3 +714,83 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 </div>
 
 ![alt text](image.png)
+
+<!-- Sentinel changes -->
+## 🔄 Process Flow Diagram
+
+The following diagram illustrates the end-to-end payroll management workflow in Dayflow:
+
+```mermaid
+flowchart TD
+    A[Start: Employee Check-in] --> B[Attendance Recorded]
+    B --> C{Daily Attendance Processing}
+    C -->|Present| D[Full Day Counted]
+    C -->|Half Day| E[Half Day Counted]
+    C -->|Absent/Leave| F[No Pay for Day]
+    
+    D --> G[Monthly Attendance Summary]
+    E --> G
+    F --> G
+    
+    G --> H[Calculate Payable Days]
+    H --> I[Fetch Employee Wage Details]
+    I --> J[Salary Calculation Engine]
+    
+    J --> K[Compute Basic Salary 50%]
+    J --> L[Compute HRA 50% of Basic]
+    J --> M[Add Allowances]
+    J --> N[Calculate Deductions PF/PT]
+    
+    K --> O[Gross Earnings]
+    L --> O
+    M --> O
+    
+    O --> P[Net Salary Calculation]
+    N --> P
+    
+    P --> Q[Generate Salary Slip PDF]
+    Q --> R[Update Payroll Records]
+    R --> S[Salary Disbursement]
+    S --> T[End: Employee Payment]
+    
+    subgraph Inputs
+        U[Employee Data]
+        V[Attendance Records]
+        W[Leave Applications]
+        X[Company Policies]
+    end
+    
+    subgraph Outputs
+        Y[Payroll Reports]
+        Z[Salary Slips]
+        AA[Bank Transfer Files]
+    end
+    
+    U --> J
+    V --> G
+    W --> C
+    X --> J
+    
+    P --> Y
+    Q --> Z
+    S --> AA
+    
+    style A fill:#e1f5fe
+    style T fill:#e8f5e8
+    style J fill:#fff3e0
+    style P fill:#f3e5f5
+```
+
+### Process Flow Description
+
+1. **Attendance Collection**: Employees check in/out daily, creating attendance records
+2. **Monthly Aggregation**: System aggregates attendance data and calculates payable days
+3. **Salary Computation**: Salary engine calculates components based on:
+   - Basic salary (50% of gross wage)
+   - HRA (50% of basic)
+   - Various allowances (standard, performance, LTA, fixed)
+   - Deductions (PF, professional tax)
+4. **Payroll Generation**: System generates payroll records and salary slip PDFs
+5. **Disbursement**: Final net salary is processed for bank transfer
+
+The process ensures accurate, transparent, and timely salary payments while maintaining compliance with statutory requirements.

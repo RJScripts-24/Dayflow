@@ -62,3 +62,32 @@ const Salary = sequelize.define('Salary', {
 });
 
 module.exports = Salary;
+
+// sentinel generated
+class SalaryStrategy {
+  calculate(baseSalary, employee) {
+    throw new Error('Method not implemented');
+  }
+}
+
+class CommissionStrategy extends SalaryStrategy {
+  calculate(baseSalary, employee) {
+    return baseSalary + (employee.sales * 0.1);
+  }
+}
+
+class BonusStrategy extends SalaryStrategy {
+  calculate(baseSalary, employee) {
+    return baseSalary + (employee.performanceRating * 1000);
+  }
+}
+
+class SalaryEngine {
+  constructor(strategy) {
+    this.strategy = strategy;
+  }
+  
+  calculate(baseSalary, employee) {
+    return this.strategy.calculate(baseSalary, employee);
+  }
+}

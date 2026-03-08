@@ -130,3 +130,107 @@ const AttendanceModel = {
 };
 
 module.exports = AttendanceModel;
+
+// sentinel generated
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const attendanceSchema = new Schema({
+    employeeId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Employee',
+        required: [true, 'Employee ID is required'],
+        index: true
+    },
+    date: {
+        type: Date,
+        required: [true, 'Date is required'],
+        index: true
+    },
+    checkIn: {
+        type: Date,
+        required: [true, 'Check-in time is required']
+    },
+    checkOut: {
+        type: Date,
+        validate: {
+            validator: function(value) {
+                // Check-out must be after check-in if provided
+                return !value || value > this.checkIn;
+            },
+            message: 'Check-out time must be after check-in time'
+        }
+    },
+    status: {
+        type: String,
+        enum: ['present', 'absent', 'late', 'half-day', 'on-leave'],
+        default: 'present'
+    },
+    totalHours: {
+        type: Number,
+        min: 0,
+        max: 24,
+        default: 0
+    },
+    notes: {
+        type: String,
+        trim: true,
+        maxlength: 500
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+}, {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+// Compound index for unique attendance per employee per day
+attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
+
+// Virtual for calculating total hours if checkOut exists
+attendanceSchema.virtual('calculatedHours').get(function() {
+    if (this.checkIn && this.checkOut) {
+        const diffMs = this.checkOut - this.checkIn;
+        return Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // Hours with 2 decimal places
+    }
+    return 0;
+});
+
+// Pre-save middleware to calculate totalHours
+attendanceSchema.pre('save', function(next) {
+    if (this.checkIn && this.checkOut) {
+        const diffMs = this.checkOut - this.checkIn;
+        this.totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+    }
+    next();
+});
+
+// Static method to find attendance by employee and date range
+attendanceSchema.statics.findByEmployeeAndDateRange = function(employeeId, startDate, endDate) {
+    return this.find({
+        employeeId,
+        date: { $gte: startDate, $lte: endDate },
+        isActive: true
+    }).sort({ date: 1 });
+};
+
+// Static method to mark attendance as inactive (soft delete)
+attendanceSchema.statics.softDelete = function(attendanceId) {
+    return this.findByIdAndUpdate(
+        attendanceId,
+        { isActive: false },
+        { new: true }
+    );
+};
+
+// Instance method to check if attendance is complete
+attendanceSchema.methods.isComplete = function() {
+    return !!(this.checkIn && this.checkOut);
+};
+
+const Attendance = mongoose.model('Attendance', attendanceSchema);
+
+module.exports = Attendance;
